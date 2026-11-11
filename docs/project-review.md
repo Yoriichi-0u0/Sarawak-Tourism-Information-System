@@ -23,7 +23,7 @@ The SRS uses Lauesen's Tasks and Support approach. Its example-solution column d
 
 Food discovery, saved favourites, day-by-day itinerary editing, listing maintenance, and browser-local activity reports are inferred from the SRS goals and scope. They are not fabricated completed task descriptions. Browsing requires no account. A responsive website offers desktop and mobile experiences from the same shareable link. Prototype content has 8 attractions, 3 fictional stay examples, and 3 food-discovery entries across Kuching and Miri. Travel durations are planning suggestions, not schedules. Accommodation inventory, prices, transport schedules, opening hours, and booking confirmations are not invented.
 
-Local storage is enough for this UI/UX evaluation. Supabase was not provisioned: it would add shared data/authentication requirements beyond this prototype. Itinerary links encode only the trip data shown to the visitor; recipients explicitly import a copy. Staff-demo modifications do not affect other visitors. No source course documents, student details, IDs, private contact information, or third-party textbook content are included in the application or repository.
+Local storage is enough for this UI/UX evaluation. A Supabase project was created later, but the prototype does not use it; shared data and authentication would require a separate implementation. Itinerary links encode only the trip data shown to the visitor; recipients explicitly import a copy. Staff-demo modifications do not affect other visitors. No source course documents, student details, IDs, private contact information, or third-party textbook content are included in the application or repository.
 
 ## Inventory
 

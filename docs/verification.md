@@ -39,9 +39,9 @@ No physical phone acceptance, formal accessibility audit, stakeholder acceptance
 
 ## Publishing
 
-The application is deployed as a static Vite site on Vercel at [sarawak-tourism-prototype.vercel.app](https://sarawak-tourism-prototype.vercel.app/). An unauthenticated HTTPS request returned **HTTP 200**, and a fresh browser session opened the actual prototype without a login page. Vercel reported production state **READY**.
+The application is deployed as a static Vite site on Vercel at [sarawak-tourism-information-system.vercel.app](https://sarawak-tourism-information-system.vercel.app/). An unauthenticated HTTPS request returned **HTTP 200**, and a fresh browser session opened the actual prototype without a login page. Vercel reported production state **READY**.
 
-[The public GitHub repository](https://github.com/Yoriichi-0u0/sarawak-tourism-prototype) contains only the prototype and its project notes, not the supplied course PDFs/DOCX files. Its `main` branch is connected to Vercel for future deployments. Supabase is not used for this local UI/UX demonstrator.
+[The public GitHub repository](https://github.com/Yoriichi-0u0/Sarawak-Tourism-Information-System) contains only the prototype and its project notes, not the supplied course PDFs/DOCX files. Its `main` branch is connected to Vercel for future deployments. The separately provisioned Supabase project is not used for this local UI/UX demonstrator.
 
 The public deployment repeated all **28 responsive checks** at 1440, 768, 390 and 320 px: no page overflow and all image assets loaded. On the live site, saving/adding a place, itinerary date labels, sharing, explicit import, reload persistence, and mobile management editing passed. Public browser verification recorded zero console errors or warnings. A test selector initially expected an entry-specific Edit name; the actual row contains an Edit button, and the corrected row-scoped check passed. The final native mobile capture explicitly loaded lazy images to avoid waiting for offscreen image decoding.
 

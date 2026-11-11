@@ -2,7 +2,7 @@
 
 A responsive Sarawak tourism UI/UX prototype based on the SWE30003 Assignment 01 case and the supplied draft SRS. It supports discovery, planning, external travel arrangements, and a local management demonstration.
 
-**Live prototype:** [sarawak-tourism-prototype.vercel.app](https://sarawak-tourism-prototype.vercel.app/) · **Source:** [GitHub](https://github.com/Yoriichi-0u0/sarawak-tourism-prototype)
+**Live prototype:** [sarawak-tourism-information-system.vercel.app](https://sarawak-tourism-information-system.vercel.app/) · **Source:** [GitHub](https://github.com/Yoriichi-0u0/Sarawak-Tourism-Information-System)
 
 The production site is public and requires no login. Vercel is connected to the GitHub `main` branch for future deployments. Anyone with the site link can explore the prototype; local management changes remain on their own device.
 
@@ -49,7 +49,7 @@ The lockfile records the exact dependencies. The app uses React, TypeScript, Vit
 
 This is a UI/UX demonstrator, not the final production tourism system. No accounts, passwords, payments, real reservations, live availability, verified operating hours, or shared tourism database are implemented. The management area is deliberately accessible as a local demo; it does not claim to meet the SRS's production staff authorization requirement. Edits, saved places, and activity counts are isolated to browser local storage. Clearing browser data clears them.
 
-Supabase is unnecessary for this scope and was not provisioned. A real shared management portal would need server-side authorization, authenticated staff sessions, authoritative data, and database access policies.
+An existing Supabase project is available for future development, but this browser-local prototype does not connect to it or require database credentials. A real shared management portal would need server-side authorization, authenticated staff sessions, authoritative data, and database access policies.
 
 Shared trip URLs include the title, dates, and notes visible in the trip. Only the original catalogue entries are shareable; local management-demo entries are excluded. Importing a trip replaces the current local itinerary after the visitor clicks **Import trip**.
 
