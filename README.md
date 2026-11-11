@@ -8,7 +8,7 @@ The production site is public and requires no login. Vercel is connected to the 
 
 ## Desktop and mobile previews
 
-Captured from the public deployment at 1440×1080 and 390×844. Images are illustrative concept photography.
+Captured at 1440×1080 and 390×844. Images are illustrative concept photography.
 
 ![Desktop discovery screen](docs/screenshots/desktop.png)
 
@@ -44,6 +44,8 @@ npm run preview
 ```
 
 The lockfile records the exact dependencies. The app uses React, TypeScript, Vite, Lucide icons, and self-hosted DM Sans and Lora fonts. Images are original generated concept illustrations, optimized as WebP.
+
+The hornbill artwork supplied for the app icon is retained at `design-assets/branding/hornbill-original.png`. Its 256 px and 512 px variants are served from `public/icons` for the site brand, browser tab, and home-screen icon.
 
 ## Prototype boundaries
 

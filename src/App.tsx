@@ -139,19 +139,7 @@ function initialPage(): Page {
 }
 function BrandMark() {
   return (
-    <svg viewBox="0 0 32 32" fill="none" aria-hidden="true">
-      <circle cx="16" cy="16" r="11" stroke="currentColor" strokeWidth="1.4" />
-      <path
-        d="M16 1v30M1 16h30M10 22l4-8 8-4-4 8z"
-        stroke="currentColor"
-        strokeWidth="1.4"
-        strokeLinejoin="round"
-      />
-      <path
-        d="M16 3l-2 5h4zM29 16l-5-2v4zM16 29l2-5h-4zM3 16l5 2v-4z"
-        fill="currentColor"
-      />
-    </svg>
+    <img src="/icons/hornbill-256.png" alt="" width="32" height="32" />
   );
 }
 function photo(image: string) {

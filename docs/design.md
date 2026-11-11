@@ -4,7 +4,7 @@ Reference: `design-concept.png`, generated with the built-in imagegen tool befor
 
 ## System
 
-White page background, dark pine-green type and controls, a quieter pale-green selection surface, thin neutral borders, and generous breathing room. Lora provides editorial headings; DM Sans handles navigation, labels, and forms. The compass brand mark and outline icons form a consistent visual language.
+White page background, dark pine-green type and controls, a quieter pale-green selection surface, thin neutral borders, and generous breathing room. Lora provides editorial headings; DM Sans handles navigation, labels, and forms. The user-supplied hornbill app icon now marks the site brand; outline control icons retain the original visual language.
 
 - Primary pine: `#154c3b`; heading: `#102f27`; body: `#213630`.
 - Muted copy: `#64716c`; border: `#dce3df`; selected category: `#e1efe7`.
@@ -23,11 +23,11 @@ White page background, dark pine-green type and controls, a quieter pale-green s
 | Information architecture | Discover, Stays, Getting around, Food & drink, Saved, My trip                  | Preserved; management reached through footer/mobile menu, as required by the SRS                                         |
 | Typography               | Editorial serif heading, crisp sans-serif controls                             | Self-hosted Lora/DM Sans; explicitly styled controls and captions; checked mobile line breaks                            |
 | Palette                  | White background, dark forest green, pale-green selected interest              | Matched code tokens; no cream page background or extraneous gradients                                                    |
-| Header and icons         | Compass mark, outlined heart/map, selected nav underline                       | Replaced initial simple Lucide compass brand with a custom cardinal compass mark; retained consistent outline controls   |
+| Header and icons         | Compass mark, outlined heart/map, selected nav underline                       | The user subsequently supplied a hornbill app icon, now used in the header, footer, browser tab and home-screen metadata; the outline controls and selected underline remain consistent |
 | Containers and spacing   | Open catalogue, wide scenic photo, one search control band                     | Kept the same hierarchy; reduced desktop hero/header spacing to bring more catalogue content into the first viewport     |
 | Assets                   | Rainforest river, sandstone coast, traditional architecture, orangutan         | Separate original illustrative images generated for implementation; concept bitmap is not embedded as the UI             |
 | Responsive behavior      | Compact heading, stacked search, horizontally scrollable interests, bottom nav | Implemented and inspected at 390 px; overflow checks cover 320, 390, 768 and 1440 px                                     |
 
-Intentional differences: imagery was separately generated and therefore is not pixel-identical to the concept. The concept board's illustrated mobile column has different proportions from a real 390×844 browser viewport; real content is allowed to continue below the fold. A small comparison action supports the SRS. Downstream itinerary, transport, reports and management forms were extended using the same design system. Accurate prototype/privacy/provider notes are included in context and the footer.
+Intentional differences: imagery was separately generated and therefore is not pixel-identical to the concept. The later user-supplied hornbill icon replaces the concept's compass brand mark. The concept board's illustrated mobile column has different proportions from a real 390×844 browser viewport; real content is allowed to continue below the fold. A small comparison action supports the SRS. Downstream itinerary, transport, reports and management forms were extended using the same design system. Accurate prototype/privacy/provider notes are included in context and the footer.
 
 The discovery surface was compared with the concept through `view_image`. Functional checks were performed in the in-app browser. Its large-viewport screenshots were clipped/incorrectly composited, so final screenshots use Playwright with a separate headless Microsoft Edge session. Temporary in-app viewport/CDP overrides were cleared.

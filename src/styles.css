@@ -144,9 +144,10 @@ textarea {
   padding: 0;
   flex-shrink: 0;
 }
-.brand svg {
+.brand img {
   width: 32px;
   height: 32px;
+  border-radius: 8px;
 }
 .brand span {
   font-size: 33px;
@@ -623,7 +624,7 @@ textarea {
 .site-footer .brand span {
   font-size: 27px;
 }
-.site-footer .brand svg {
+.site-footer .brand img {
   width: 25px;
   height: 25px;
 }
@@ -1578,7 +1579,7 @@ textarea {
   .brand span {
     font-size: 29px;
   }
-  .brand svg {
+  .brand img {
     width: 28px;
   }
   .page-intro h1 {
@@ -1752,7 +1753,7 @@ textarea {
   .brand span {
     font-size: 29px;
   }
-  .brand svg {
+  .brand img {
     width: 29px;
     height: 29px;
   }
@@ -2180,7 +2181,7 @@ textarea {
   .brand span {
     font-size: 28px;
   }
-  .brand svg {
+  .brand img {
     width: 28px;
     height: 28px;
   }
