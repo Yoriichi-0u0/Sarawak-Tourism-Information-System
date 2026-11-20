@@ -1,91 +1,78 @@
-# sarawak.
+# Sarawak Tourism Information System
 
-A responsive Sarawak tourism UI/UX prototype based on the SWE30003 Assignment 01 case and the supplied draft SRS. It supports discovery, planning, external travel arrangements, and a local management demonstration.
+SWE30003 Assignment 03 Option B. This package contains the React client, the local Node.js and SQLite assessment service, its tests and a prebuilt assessment client. The assessment build supports T1 Explore Destinations, T5 Find Events, T6 Plan Itinerary and T8 Maintain Tourism Information. Staff can maintain all six tourism record categories. The catalogue includes synthetic demonstration records.
 
-**Live prototype:** [sarawak-tourism-information-system.vercel.app](https://sarawak-tourism-information-system.vercel.app/) · **Source:** [GitHub](https://github.com/Yoriichi-0u0/Sarawak-Tourism-Information-System)
+The standard Vite build produces the browser-local prototype. The Option B assessment runs on your computer and stores its data in SQLite. Setup requires no hosted service or database account.
 
-The production site is public and requires no login. Vercel is connected to the GitHub `main` branch for future deployments. Anyone with the site link can explore the prototype; local management changes remain on their own device.
+## Start the assessment build
 
-## Desktop and mobile previews
-
-Captured at 1440×1080 and 390×844. Images are illustrative concept photography.
-
-![Desktop discovery screen](docs/screenshots/desktop.png)
-
-![Mobile discovery screen](docs/screenshots/mobile.png)
-
-## Explore the prototype
-
-- **Discover:** search eight attractions, filter by region and interest, compare up to three places, and open visitor information.
-- **Stays:** browse illustrative accommodation types and hand off to an external provider for actual properties and bookings.
-- **Getting around:** enter an origin and destination, explore operator information, and recover from an unsupported route.
-- **Food & drink:** discover local dishes and dining ideas with dietary reminders and official information links.
-- **Saved:** keep favourite places on the current device.
-- **My trip:** name a trip, set its date and length, add notes, move and reorder places between days, export a text itinerary, and share a link that another visitor can explicitly import.
-- **Management demo:** create and edit listings, archive and restore them, inspect local activity, and export CSV. The session ends after 15 minutes of inactivity.
-
-On mobile, use the bottom navigation and **More** to reach Stays, Getting around, Food & drink, and Management demo. The management link also appears in the footer.
-
-## Run locally
-
-Requires Node.js 22.12 or newer (Node.js 24 LTS recommended).
+Use **Node.js 25.8.1 and npm 11.11.0**, the versions used for the clean-extraction verification. Install the dependencies in the extracted folder. The install must include development dependencies because the AS03 runner uses Vite and tsx.
 
 ```sh
+node --version
+npm --version
 npm ci
-npm run dev
 ```
 
-Open the URL printed by Vite, normally `http://localhost:5173`.
+The submission archive includes `dist-as03/`. Run `npm run build:as03` when starting from a source checkout or to reproduce that build.
+
+Use the following commands in Bash or Zsh to set up staff access for a fresh profile. Choose a new synthetic password of 12–200 characters and enter it at the silent prompt.
+
+```sh
+export AS03_DATA_PROFILE=assessment
+printf 'Choose a temporary staff password: '
+IFS= read -r -s AS03_STAFF_PASSWORD
+printf '\n'
+export AS03_STAFF_PASSWORD
+npm run start:as03
+```
+
+Open **http://127.0.0.1:4183/**. The service accepts loopback requests. To demonstrate staff operations, open **Staff** and enter the password you chose. Tourists can browse and create a guest itinerary without staff access. Keep the generated guest link private because it grants access to that plan.
+
+Stop the server with **Ctrl+C**, then run `unset AS03_STAFF_PASSWORD` to clear the shell setting. Restart with the same `AS03_DATA_PROFILE` to reopen that profile and its itineraries. The previously chosen password remains valid for that profile.
+
+## Reproduce both builds and tests
+
+Run these commands from the extracted directory after `npm ci`.
 
 ```sh
 npm test
 npm run build
-npm run preview
+npm run build:as03
+npm exec -- tsc --noEmit --incremental false
 ```
 
-The lockfile records the exact dependencies. The app uses React, TypeScript, Vite, Lucide icons, and self-hosted DM Sans and Lora fonts. Images are original generated concept illustrations, optimized as WebP.
+| Command | Result |
+|---|---|
+| `npm test` | Runs the prototype and AS03 automated tests |
+| `npm run build` | Builds the standard static prototype in `dist/` |
+| `npm run build:as03` | Builds the assessment client in `dist-as03/` |
+| `npm run start:as03` | Serves the assessment build and API at `127.0.0.1:4183` |
+| `npm run dev:as03` | Starts the same local API with the development client on `127.0.0.1:5183` |
 
-The hornbill artwork supplied for the app icon is retained at `design-assets/branding/hornbill-original.png`. Its 256 px and 512 px variants are served from `public/icons` for the site brand, browser tab, and home-screen icon.
+Use the package lockfile with `npm ci`. The package resolves dependencies from the npm registry. Playwright and Chromium are independent review tools and are unnecessary for installing or using the application.
 
-## Prototype boundaries
+## Try the four workflows
 
-This is a UI/UX demonstrator, not the final production tourism system. No accounts, passwords, payments, real reservations, live availability, verified operating hours, or shared tourism database are implemented. The management area is deliberately accessible as a local demo; it does not claim to meet the SRS's production staff authorization requirement. Edits, saved places, and activity counts are isolated to browser local storage. Clearing browser data clears them.
+1. **T1 Explore Destinations.** Search for Bako by name, filter by interest, compare two destinations, and select one for an itinerary. A no-match search retains the initial interest suggestions.
+2. **T5 Find Events.** Search for the synthetic Kuching cultural showcase by location and the sample date **27 November 2026**. Open the event details to review its venue, status and configured external referral. The sample referral goes to `https://example.org/`.
+3. **T6 Plan Itinerary.** Save the destination and event to a plan. Use overlapping timed entries to see a conflict, then revise the times to make them adjacent. Copy the guest link, reopen it in a fresh browser context, and remove an entry or delete the plan.
+4. **T8 Maintain Tourism Information.** Sign in through Staff. Save an incomplete event draft and attempt publication to see field validation. Correct the draft, publish it and then withdraw the record. A saved guest plan continues to show its own planned interval after a publication update or withdrawal.
 
-An existing Supabase project is available for future development, but this browser-local prototype does not connect to it or require database credentials. A real shared management portal would need server-side authorization, authenticated staff sessions, authoritative data, and database access policies.
+## Database and troubleshooting
 
-Shared trip URLs include the title, dates, and notes visible in the trip. Only the original catalogue entries are shareable; local management-demo entries are excluded. Importing a trip replaces the current local itinerary after the visitor clicks **Import trip**.
+| Symptom or setting | Action |
+|---|---|
+| Node cannot load `node:sqlite`, or Vite dependencies fail to load | Check `node --version` and `npm --version`. Use the verified versions and reinstall with `npm ci`. If `NODE_ENV=production` omits development dependencies, run `npm ci --include=dev`. |
+| Port 4183 is already in use | Stop the other local process or use `npm run start:as03 -- --port 4184` and open `http://127.0.0.1:4184/`. |
+| The assessment page is missing after startup | Run `npm run build:as03` from the extracted directory. Confirm that `dist-as03/index.html` exists. The standard `dist/` output is the prototype. |
+| Staff sign-in is unavailable | Stop the server, set `AS03_STAFF_PASSWORD` and restart the same profile. If the staff account already exists, use its original password or choose a fresh synthetic profile. Restarting with a different password does not overwrite an existing account. |
+| A fresh catalogue is needed | Choose a new `AS03_DATA_PROFILE` name with 1–40 ASCII letters, digits, underscores or hyphens. Startup creates `.as03-data/<profile>.sqlite`, initializes the schema, and seeds an empty catalogue. The default profile is `local`. Existing profiles are preserved. |
+| Cannot create or write the database | Extract to a writable directory and stop any other instance using the same profile. Keep each test profile separate from any real data. |
+| Guest link cannot reopen a plan | Check that the server is running on the link's origin and is using the profile that created the plan. The link stops working after the itinerary is deleted. |
 
-The SRS draft has incomplete task and quality sections. Food discovery, favourite lists, itinerary editing, and local reports are explicitly documented design assumptions derived from the goals and scope. The original assignment files were not edited or uploaded. No student names/IDs or source textbook content appear in this repository.
+Database setup is implemented in `server/as03/storage.ts` and `server/as03/seed.ts`. No database file is needed in the archive. Keep generated `.as03-data/` files on your computer because they can contain saved plans and credential digests.
 
-## Project notes
+## Scope
 
-- [Folder review and source inventory](docs/project-review.md)
-- [Requirement and workflow mapping](docs/requirements.md)
-- [Design system and visual comparison](docs/design.md)
-- [Verification evidence](docs/verification.md)
-- [Image generation prompts](docs/image-prompts.md)
-
-Official visitor reference links include the [Sarawak Tourism Board](https://www.sarawaktourism.com/), [Sarawak Forestry](https://sarawakforestry.com/), [Sarawak Cultural Village](https://scv.com.my/), [Mulu National Park](https://mulupark.com/), and [Sarawak Museum](https://museum.sarawak.gov.my/). Provider links require HTTPS and open in a separate tab. The prototype does not guarantee availability or destination coverage on those external services.
-
-## AS03 local system
-
-The AS03 mode uses a local Node.js service and SQLite. It provides destination
-and event search, saved guest itineraries, and staff editing and publication for
-six tourism categories. The sample event and staff data are synthetic.
-
-    npm ci
-    npm test
-    npm run build:as03
-    read -rs AS03_STAFF_PASSWORD
-    export AS03_STAFF_PASSWORD
-    npm run start:as03
-
-The silent input sets a staff password of 12 to 200 characters. Open
-http://127.0.0.1:4183/. The service uses the password when a data profile creates
-its staff account. Later runs with the same profile use the stored credential.
-To start with fresh sample data, set AS03_DATA_PROFILE to a new name. SQLite
-files are stored under .as03-data/. Verified with Node.js 25.8.1.
-
-Run npm run dev:as03 for the same local workflows with Vite development
-overlays on port 5183. The standard npm run build continues to build the static
-prototype. Use Ctrl+C to stop either local server.
+The assessment release is intended for a locally run demonstration. It uses a single staff account per SQLite profile and capability links for guest itineraries. External bookings, event registration and payments are handled by third-party providers. The package demonstrates local behavior with seeded data. The hosted prototype and any hosted database are separate from this assessment runtime.
