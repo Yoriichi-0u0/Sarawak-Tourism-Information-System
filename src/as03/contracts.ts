@@ -31,9 +31,21 @@ export type Plan = PlanSettings & {
   entries: Entry[];
 };
 export type ReviewedPlan = Omit<Plan, "entries"> & {
-  entries: (Entry & { title: string; notice?: Notice })[];
+  entries: (Entry & { title: string; location?: string; notice?: Notice })[];
   conflicts: [string, string][];
 };
+
+export function destinationInterests(catalogue: readonly TourismItem[]): string[] {
+  const interests = new Map<string, string>();
+  for (const item of catalogue) {
+    if (item.kind !== "destination") continue;
+    const label = item.fields.interest?.trim();
+    if (!label) continue;
+    const key = label.toLowerCase();
+    if (!interests.has(key)) interests.set(key, label);
+  }
+  return [...interests.values()].sort((first, second) => first.localeCompare(second));
+}
 
 const details = {
   destination: ["location", "interest", "summary", "activities", "image", "provider"],

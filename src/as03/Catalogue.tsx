@@ -1,9 +1,10 @@
-import { useCallback, useEffect, useState, type FormEvent } from "react";
+import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
 import { ArrowUpRight, CalendarDays, MapPin, Plus, Search } from "lucide-react";
 
 import Modal from "../components/Modal";
 import { safeProvider } from "../domain";
 import { api, errorMessage } from "./client";
+import { destinationInterests } from "./contracts";
 import type { TourismItem } from "./contracts";
 
 const photos = new Set(["bako", "culture", "wildlife", "cave", "museum", "waterfront", "kolo"]);
@@ -13,25 +14,29 @@ export function Catalogue({ mode, select }: {
   select: (item: TourismItem) => void;
 }) {
   const [items, setItems] = useState<TourismItem[]>();
+  const [interests, setInterests] = useState<string[]>([]);
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(true);
   const [detail, setDetail] = useState<TourismItem>();
   const [compared, setCompared] = useState<TourismItem[]>([]);
   const [showComparison, setShowComparison] = useState(false);
   const destinations = mode === "destinations";
+  const interestListId = useId();
 
   const search = useCallback(async (query = "") => {
     setError("");
     setBusy(true);
     try {
-      setItems(await api<TourismItem[]>(`${mode}${query ? `?${query}` : ""}`));
+      const results = await api<TourismItem[]>(`${mode}${query ? `?${query}` : ""}`);
+      setItems(results);
+      if (destinations && !query) setInterests(destinationInterests(results));
     } catch (cause) {
       setItems(undefined);
       setError(errorMessage(cause));
     } finally {
       setBusy(false);
     }
-  }, [mode]);
+  }, [destinations, mode]);
 
   useEffect(() => { void search(); }, [search]);
   const closeDetail = useCallback(() => setDetail(undefined), []);
@@ -57,7 +62,12 @@ export function Catalogue({ mode, select }: {
       <label>Name<input name="query" placeholder={destinations ? "e.g. Bako" : "e.g. showcase"} maxLength={200} /></label>
       <label>Location<input name="location" placeholder="e.g. Kuching" maxLength={200} /></label>
       {destinations
-        ? <label>Interest<input name="interest" placeholder="e.g. Culture" maxLength={200} /></label>
+        ? <>
+          <label>Interest<input name="interest" list={interestListId} placeholder="e.g. Culture" maxLength={200} /></label>
+          <datalist id={interestListId}>
+            {interests.map((interest) => <option value={interest} key={interest} />)}
+          </datalist>
+        </>
         : <label>Visit date<input name="date" type="date" /></label>}
       <button className="as03-button" disabled={busy}><Search size={18} /> Search</button>
     </form>

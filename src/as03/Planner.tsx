@@ -1,5 +1,5 @@
 import { useEffect, useState, type FormEvent } from "react";
-import { ArrowDown, ArrowUp, CalendarDays, ChevronRight, Copy, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarDays, ChevronRight, Copy, MapPin, RefreshCw } from "lucide-react";
 
 import { api, errorMessage } from "./client";
 import type { ReviewedPlan, TourismItem } from "./contracts";
@@ -142,6 +142,7 @@ export function Planner({ selection, clearSelection, browse }: {
         {plan.entries.map((entry, index) => <li key={entry.id} className="as03-panel" aria-label={entry.title}>
           <p className="as03-meta">{entry.start ? `${entry.start}–${entry.end} MYT` : "Time undecided"}</p>
           <h3>{entry.title}</h3>
+          {entry.location && <p className="as03-meta"><MapPin size={16} aria-hidden="true" /> {entry.location}</p>}
           {entry.notice && <p className="as03-status">{entry.notice === "unavailable" ? "Current information unavailable" : `Event ${entry.notice}`}</p>}
           {editing === entry.id ? <form className="as03-dateform" onSubmit={(event) => {
             event.preventDefault();

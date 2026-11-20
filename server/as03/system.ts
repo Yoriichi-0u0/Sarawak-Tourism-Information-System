@@ -187,7 +187,9 @@ export class ItineraryCoordinator {
       if (!recordCache.has(entry.recordId))
         recordCache.set(entry.recordId, this.catalog.getPublishedRecord(entry.recordId));
       const record = recordCache.get(entry.recordId);
+      const location = entry.kind === "event" ? record?.fields.venue : record?.fields.location;
       return { ...entry, title: record?.fields.title ?? (entry.kind === "event" ? "Unavailable event" : "Unavailable destination"),
+        location: location || undefined,
         notice: new ItineraryEntry(entry).assessEvent(record) };
     });
     return { ...plan, entries, conflicts: new Itinerary(plan).detectConflicts() };
