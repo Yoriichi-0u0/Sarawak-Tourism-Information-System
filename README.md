@@ -66,3 +66,26 @@ The SRS draft has incomplete task and quality sections. Food discovery, favourit
 - [Image generation prompts](docs/image-prompts.md)
 
 Official visitor reference links include the [Sarawak Tourism Board](https://www.sarawaktourism.com/), [Sarawak Forestry](https://sarawakforestry.com/), [Sarawak Cultural Village](https://scv.com.my/), [Mulu National Park](https://mulupark.com/), and [Sarawak Museum](https://museum.sarawak.gov.my/). Provider links require HTTPS and open in a separate tab. The prototype does not guarantee availability or destination coverage on those external services.
+
+## AS03 local system
+
+The AS03 mode uses a local Node.js service and SQLite. It provides destination
+and event search, saved guest itineraries, and staff editing and publication for
+six tourism categories. The sample event and staff data are synthetic.
+
+    npm ci
+    npm test
+    npm run build:as03
+    read -rs AS03_STAFF_PASSWORD
+    export AS03_STAFF_PASSWORD
+    npm run start:as03
+
+The silent input sets a staff password of 12 to 200 characters. Open
+http://127.0.0.1:4183/. The service uses the password when a data profile creates
+its staff account. Later runs with the same profile use the stored credential.
+To start with fresh sample data, set AS03_DATA_PROFILE to a new name. SQLite
+files are stored under .as03-data/. Verified with Node.js 25.8.1.
+
+Run npm run dev:as03 for the same local workflows with Vite development
+overlays on port 5183. The standard npm run build continues to build the static
+prototype. Use Ctrl+C to stop either local server.

@@ -1,0 +1,63 @@
+export const categories = {
+  destination: "Destination",
+  event: "Event",
+  accommodation: "Accommodation",
+  transportation: "Transportation",
+  dining: "Dining option",
+  visitor: "Visitor information",
+} as const;
+
+export type RecordKind = keyof typeof categories;
+export type Fields = Record<string, string>;
+export type TourismItem = {
+  id: string;
+  kind: RecordKind;
+  version: number;
+  fields: Fields;
+};
+export type StaffRecord = TourismItem & { publishedVersion: number | null };
+export type Notice = "cancelled" | "postponed" | "unavailable";
+export type PlanSettings = { date: string; provisional: boolean };
+export type Entry = {
+  id: string;
+  recordId: string;
+  kind: "destination" | "event";
+  start: string;
+  end: string;
+};
+export type Plan = PlanSettings & {
+  id: string;
+  revision: number;
+  entries: Entry[];
+};
+export type ReviewedPlan = Omit<Plan, "entries"> & {
+  entries: (Entry & { title: string; notice?: Notice })[];
+  conflicts: [string, string][];
+};
+
+const details = {
+  destination: ["location", "interest", "summary", "activities", "image", "provider"],
+  event: ["destinationIds", "venue", "status", "startsAt", "summary", "provider"],
+  accommodation: ["destinationIds", "accommodationType", "summary", "provider"],
+  transportation: ["destinationIds", "operator", "route", "schedule", "provider"],
+  dining: ["destinationIds", "cuisine", "location", "dietary", "hours"],
+  visitor: ["guidanceCategory", "area", "destinationIds", "summary", "provider"],
+} as const;
+
+export const fieldLabels: Record<string, string> = {
+  title: "Title", location: "Location", interest: "Interest category",
+  summary: "Description", activities: "Activities", image: "Photo", provider: "External provider URL",
+  destinationIds: "Related destinations", venue: "Venue", status: "Event status",
+  startsAt: "Start date and time", accommodationType: "Accommodation type",
+  operator: "Operator", route: "Route description", schedule: "Schedule",
+  cuisine: "Cuisine", dietary: "Dietary details", hours: "Opening hours",
+  guidanceCategory: "Guidance category", area: "Coverage",
+};
+
+export function editableFields(kind: RecordKind) {
+  return ["title", ...details[kind]];
+}
+
+export function isRecordKind(value: unknown): value is RecordKind {
+  return typeof value === "string" && Object.hasOwn(categories, value);
+}
