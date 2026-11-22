@@ -92,3 +92,8 @@
 .as03-travel .as03-field { max-width: 320px; }
 .as03-travel-record { padding: 14px 0; border-top: 1px solid var(--border); }
 .as03-travel-record h3 { margin-bottom: 4px; }
+.as03-stale { background: #fff8e6; border: 1px solid #d9b45f; border-left-width: 5px; border-radius: 8px; padding: 14px 16px; color: #4d3a10; }
+.as03-stale h2, .as03-stale h3 { font-size: 18px; margin: 0 0 6px; }
+.as03-stale p, .as03-stale ul { margin: 0 0 10px; }
+.as03-stale ul { padding-left: 20px; }
+.as03-editor .as03-stale { margin-bottom: 14px; }

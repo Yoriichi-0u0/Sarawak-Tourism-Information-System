@@ -1,13 +1,16 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { LockKeyhole, Plus, Save, Upload } from "lucide-react";
 
 import { api, errorMessage, RequestError } from "./client";
 import { categories, editableFields, fieldLabels, isRecordKind } from "./contracts";
 import type { Fields, RecordKind, StaffRecord } from "./contracts";
+import { compareDraft, isStale, rebaseDraft } from "./recovery";
 
 type Editor = { id?: string; kind: RecordKind; version?: number; fields: Fields };
+type Conflict = { base: StaffRecord; latest: StaffRecord };
 
 const empty = (kind: RecordKind = "event"): Editor => ({ kind, fields: {} });
+const fieldNames = (keys: string[]) => keys.map((key) => fieldLabels[key] ?? key).join(", ");
 
 export function Staff() {
   const [active, setActive] = useState<boolean>();
@@ -21,6 +24,10 @@ export function Staff() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
+  const [conflict, setConflict] = useState<Conflict>();
+  const conflictNotice = useRef<HTMLDivElement>(null);
+
+  useEffect(() => { if (conflict) conflictNotice.current?.focus(); }, [conflict]);
 
   useEffect(() => {
     let live = true;
@@ -33,14 +40,14 @@ export function Staff() {
     return () => { live = false; };
   }, []);
 
-  async function run(operation: () => Promise<void>, feedback = "") {
+  async function run(operation: () => Promise<unknown>, feedback = "") {
     setBusy(true);
     setError("");
     setNotice("");
     setIssues({});
     try {
-      await operation();
-      setNotice(feedback);
+      const outcome = await operation();
+      setNotice(outcome === false ? "" : feedback);
     } catch (cause) {
       setError(errorMessage(cause));
       if (cause instanceof RequestError) {
@@ -54,13 +61,22 @@ export function Staff() {
     } finally { setBusy(false); }
   }
 
-  function select(record?: Editor) {
+  function open(record?: Editor) {
     setEditor(record);
     setDirty(false);
     setConfirmWithdraw(false);
+    setConflict(undefined);
     setError("");
     setIssues({});
     setNotice("");
+  }
+
+  function keepUnsaved() {
+    return !dirty || window.confirm("Discard your unsaved changes to this draft?");
+  }
+
+  function select(record?: Editor) {
+    if (keepUnsaved()) open(record);
   }
 
   function update(field: string, value: string) {
@@ -76,6 +92,31 @@ export function Staff() {
     });
     setDirty(false);
     setConfirmWithdraw(false);
+    setConflict(undefined);
+  }
+
+  async function recover(cause: unknown, current: Editor) {
+    if (!isStale(cause) || !current.id) throw cause;
+    const base = records.find(({ id }) => id === current.id);
+    const latestRecords = await api<StaffRecord[]>("staff/records");
+    const latest = latestRecords.find(({ id }) => id === current.id);
+    if (!base || !latest) throw new Error("This record is no longer available. Reopen the staff workspace.");
+    setRecords(latestRecords);
+    setConflict({ base, latest });
+    return false;
+  }
+
+  function keepEdits(current: Editor, { base, latest }: Conflict) {
+    setEditor({ ...current, version: latest.version, fields: rebaseDraft(base.fields, current.fields, latest.fields) });
+    setDirty(true);
+    setConflict(undefined);
+    setError("");
+    setNotice(`Your edits now apply to draft v${latest.version}. Review them, then save.`);
+  }
+
+  function loadLatest({ latest }: Conflict) {
+    open(latest);
+    setNotice(`Loaded draft v${latest.version}.`);
   }
 
   function login(event: FormEvent<HTMLFormElement>) {
@@ -96,9 +137,10 @@ export function Staff() {
     <div className="as03-row as03-section-title">
       <div><p className="as03-meta"><LockKeyhole size={18} /> Staff workspace</p><h1>Manage tourism information</h1></div>
       {active && <button className="as03-outline" disabled={busy} onClick={() => {
+        if (!keepUnsaved()) return;
         void run(async () => {
           await api("staff/session", { method: "DELETE" });
-          setActive(false); setRecords([]); select();
+          setActive(false); setRecords([]); open();
         }, "Signed out.");
       }}>Sign out</button>}
     </div>
@@ -127,17 +169,40 @@ export function Staff() {
       </section>
       {editor ? <form className="as03-panel as03-editor" onSubmit={(event) => {
         event.preventDefault();
+        const current = editor;
         void run(async () => {
-          const path = editor.id ? `staff/records/${editor.id}` : "staff/records";
-          receive(await api<StaffRecord>(path, {
-            method: editor.id ? "PUT" : "POST",
-            body: { kind: editor.kind, version: editor.version, fields: editor.fields },
-          }));
+          const path = current.id ? `staff/records/${current.id}` : "staff/records";
+          try {
+            receive(await api<StaffRecord>(path, {
+              method: current.id ? "PUT" : "POST",
+              body: { kind: current.kind, version: current.version, fields: current.fields },
+            }));
+          } catch (cause) { return recover(cause, current); }
         }, "Draft saved.");
       }}>
         <div className="as03-row"><h2>{editor.id ? "Edit draft" : "New record"}</h2>
           {editor.id && <small>Draft v{editor.version} · {selected?.publishedVersion ? `Published v${selected.publishedVersion}` : "Unpublished"}</small>}
         </div>
+        {conflict && (() => {
+          const { changedHere, changedElsewhere, overlapping } = compareDraft(conflict.base.fields, editor.fields, conflict.latest.fields);
+          const { base, latest } = conflict;
+          return <div className="as03-stale" role="alert" tabIndex={-1} ref={conflictNotice}>
+            <h3>A newer version of this draft exists</h3>
+            <p>Draft v{latest.version} was saved in another window or staff session after you opened v{base.version}. Nothing from this editor was saved{changedHere.length ? ". Your edits are still below" : ""}.</p>
+            <ul>
+              {base.publishedVersion !== latest.publishedVersion && <li>{latest.publishedVersion ? `The public record is now v${latest.publishedVersion}.` : "The public record has been withdrawn."}</li>}
+              {changedElsewhere.length > 0 && <li>Changed in v{latest.version}: {fieldNames(changedElsewhere)}.</li>}
+              {changedHere.length > 0 && <li>Your unsaved edits: {fieldNames(changedHere)}.</li>}
+              {overlapping.length > 0 && <li>Changed in both: {fieldNames(overlapping)}. Keeping your edits replaces the newer values for these fields.</li>}
+            </ul>
+            <div className="as03-row">
+              {changedHere.length > 0 && <button type="button" className="as03-button" disabled={busy} onClick={() => keepEdits(editor, conflict)}>Keep my edits on v{latest.version}</button>}
+              <button type="button" className="as03-outline" disabled={busy} onClick={() => loadLatest(conflict)}>
+                {changedHere.length ? `Load v${latest.version} and discard my edits` : `Load v${latest.version}`}
+              </button>
+            </div>
+          </div>;
+        })()}
         <label className="as03-field">Category<select disabled={Boolean(editor.id)} value={editor.kind} onChange={(event) => {
           if (isRecordKind(event.target.value)) select(empty(event.target.value));
         }}>
@@ -167,11 +232,16 @@ export function Staff() {
         </div>
         {dirty && editor.id && <p className="as03-meta">Save changes before publishing.</p>}
         <div className="as03-row">
-          <button className="as03-button" disabled={busy}><Save size={17} /> Save draft</button>
-          <button className="as03-outline" type="button" disabled={busy || dirty || !editor.id} onClick={() => {
-            void run(async () => receive(await api<StaffRecord>(`staff/records/${editor.id}/publish`, {
-              method: "POST", body: { version: editor.version },
-            })), "Published to the catalogue.");
+          <button className="as03-button" disabled={busy || Boolean(conflict)}><Save size={17} /> Save draft</button>
+          <button className="as03-outline" type="button" disabled={busy || dirty || !editor.id || Boolean(conflict)} onClick={() => {
+            const current = editor;
+            void run(async () => {
+              try {
+                receive(await api<StaffRecord>(`staff/records/${current.id}/publish`, {
+                  method: "POST", body: { version: current.version },
+                }));
+              } catch (cause) { return recover(cause, current); }
+            }, "Published to the catalogue.");
           }}><Upload size={17} /> Publish</button>
           {selected?.publishedVersion && <button className="as03-text-button" type="button" disabled={busy || dirty} onClick={() => setConfirmWithdraw(true)}>Withdraw</button>}
         </div>

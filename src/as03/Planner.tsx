@@ -1,10 +1,12 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { useEffect, useRef, useState, type FormEvent } from "react";
 import { ArrowDown, ArrowUp, CalendarDays, ChevronRight, Copy, MapPin, RefreshCw } from "lucide-react";
 
 import { api, errorMessage } from "./client";
 import type { ReviewedPlan, TourismItem } from "./contracts";
+import { describePlanChanges, isStale } from "./recovery";
 
 export type GuestLink = { id: string; guest: string };
+type DateInput = { date: string; provisional: boolean };
 
 export function readLink(): GuestLink | undefined {
   const match = /^#itinerary\/([\w-]{1,70})\/([\w-]{43})$/.exec(location.hash);
@@ -29,6 +31,13 @@ export function Planner({ selection, clearSelection, browse }: {
   const [confirmDelete, setConfirmDelete] = useState(false);
   const [start, setStart] = useState("");
   const [end, setEnd] = useState("");
+  const [dateInput, setDateInput] = useState<DateInput>();
+  const [saved, setSaved] = useState<ReviewedPlan>();
+  const savedNotice = useRef<HTMLElement>(null);
+  const unsavedInput = Boolean(dateInput || editing || (selection && (start || end)));
+  const locked = busy || Boolean(saved);
+
+  useEffect(() => { if (saved) savedNotice.current?.focus(); }, [saved]);
 
   async function run(operation: () => Promise<void>, feedback = "") {
     setError("");
@@ -43,6 +52,8 @@ export function Planner({ selection, clearSelection, browse }: {
       const next = readLink();
       setLink(next);
       setPlan(undefined);
+      setSaved(undefined);
+      setDateInput(undefined);
       setBusy(Boolean(next));
       setError("");
       setMessage("");
@@ -64,21 +75,44 @@ export function Planner({ selection, clearSelection, browse }: {
 
   function edit(change: unknown, feedback: string, finished?: () => void) {
     if (!plan || !link) return;
-    void run(async () => {
-      const value = await api<ReviewedPlan>(`itineraries/${link.id}`, {
-        method: "PUT", guest: link.guest, body: { change, revision: plan.revision },
-      });
-      setPlan(value);
-      finished?.();
-    }, feedback);
+    setError("");
+    setMessage("");
+    setBusy(true);
+    void (async () => {
+      try {
+        const value = await api<ReviewedPlan>(`itineraries/${link.id}`, {
+          method: "PUT", guest: link.guest, body: { change, revision: plan.revision },
+        });
+        setPlan(value);
+        finished?.();
+        setMessage(feedback);
+      } catch (cause) {
+        if (!isStale(cause)) { setError(errorMessage(cause)); return; }
+        try { setSaved(await api<ReviewedPlan>(`itineraries/${link.id}`, { guest: link.guest })); }
+        catch (reload) { setError(errorMessage(reload)); }
+      } finally { setBusy(false); }
+    })();
+  }
+
+  function loadSaved(discard: boolean) {
+    if (!saved) return;
+    setPlan(saved);
+    setSaved(undefined);
+    setError("");
+    if (discard) {
+      setDateInput(undefined);
+      setEditing(undefined);
+      setStart("");
+      setEnd("");
+    }
+    setMessage(discard ? "Loaded the saved itinerary." : "Loaded the saved itinerary. Your unsaved input is kept; review it, then try again.");
   }
 
   function submitDate(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const data = new FormData(event.currentTarget);
-    const settings = { date: data.get("date"), provisional: data.get("provisional") === "on" };
+    const settings = dateInput ?? { date: plan?.date ?? "", provisional: plan?.provisional ?? true };
     if (plan) {
-      edit({ action: "date", ...settings }, "Travel date updated.");
+      edit({ action: "date", ...settings }, "Travel date updated.", () => setDateInput(undefined));
       return;
     }
     void run(async () => {
@@ -87,6 +121,7 @@ export function Planner({ selection, clearSelection, browse }: {
       storeLink(access);
       setPlan(result.plan);
       setLink(access);
+      setDateInput(undefined);
     }, "Itinerary created.");
   }
 
@@ -94,9 +129,13 @@ export function Planner({ selection, clearSelection, browse }: {
     storeLink();
     setLink(undefined);
     setPlan(undefined);
+    setSaved(undefined);
+    setDateInput(undefined);
     setConfirmDelete(false);
     setError("");
   }
+
+  const shownDate = dateInput ?? { date: plan?.date ?? "", provisional: plan?.provisional ?? true };
 
   return <div className="as03-stack">
     <div className="as03-row as03-section-title">
@@ -107,13 +146,25 @@ export function Planner({ selection, clearSelection, browse }: {
     </div>
     {error && <p className="as03-error" role="alert">{error}</p>}
     {message && <p className="as03-success" role="status">{message}</p>}
+    {plan && saved && <section className="as03-stale" role="alert" aria-labelledby="as03-stale-plan" tabIndex={-1} ref={savedNotice}>
+      <h2 id="as03-stale-plan">This itinerary changed in another window or tab</h2>
+      <p>Your last change was not saved. The saved itinerary is now at revision {saved.revision}:</p>
+      <ul>{describePlanChanges(plan, saved).map((change) => <li key={change}>{change}</li>)}</ul>
+      {unsavedInput && <p>Your unsaved input is still in the form below.</p>}
+      <div className="as03-row">
+        <button className="as03-button" onClick={() => loadSaved(false)}>{unsavedInput ? "Load saved version and keep my input" : "Load saved version"}</button>
+        {unsavedInput && <button className="as03-outline" onClick={() => loadSaved(true)}>Load saved version and discard my input</button>}
+      </div>
+    </section>}
     {link && !plan && <div className="as03-panel">
       {busy ? <p role="status">Opening itinerary…</p> : <button className="as03-outline" onClick={clearPlan}>Start another itinerary</button>}
     </div>}
-    {(!link || plan) && <form className="as03-panel as03-dateform" onSubmit={submitDate} key={plan?.date ?? "new"}>
-      <label>Travel date<input type="date" name="date" required defaultValue={plan?.date} /></label>
-      <label className="as03-check"><input type="checkbox" name="provisional" defaultChecked={plan?.provisional ?? true} /> Provisional date</label>
-      <button className="as03-button" disabled={busy}>{plan ? "Update date" : "Create itinerary"}</button>
+    {(!link || plan) && <form className="as03-panel as03-dateform" onSubmit={submitDate}>
+      <label>Travel date<input type="date" name="date" required value={shownDate.date}
+        onChange={(event) => setDateInput({ ...shownDate, date: event.target.value })} /></label>
+      <label className="as03-check"><input type="checkbox" name="provisional" checked={shownDate.provisional}
+        onChange={(event) => setDateInput({ ...shownDate, provisional: event.target.checked })} /> Provisional date</label>
+      <button className="as03-button" disabled={locked}>{plan ? "Update date" : "Create itinerary"}</button>
     </form>}
     {selection && <section className="as03-panel">
       <p className="as03-tag">Selected for planning</p><h2>{selection.fields.title}</h2>
@@ -125,13 +176,13 @@ export function Planner({ selection, clearSelection, browse }: {
       }}>
         <label>Start time<input type="time" value={start} onChange={(e) => setStart(e.target.value)} /></label>
         <label>End time<input type="time" value={end} onChange={(e) => setEnd(e.target.value)} /></label>
-        <button className="as03-button" disabled={busy}>Add entry</button>
+        <button className="as03-button" disabled={locked}>Add entry</button>
       </form> : <p>Create your itinerary to add this selection.</p>}
     </section>}
     {plan && <>
       <div className="as03-row">
         <h2>Planned stops</h2>
-        <button className="as03-outline" disabled={busy} onClick={() => {
+        <button className="as03-outline" disabled={locked} onClick={() => {
           if (!link) return;
           void run(async () => setPlan(await api<ReviewedPlan>(`itineraries/${link.id}`, { guest: link.guest })), "Itinerary refreshed.");
         }}><RefreshCw size={16} /> Refresh status</button>
@@ -151,19 +202,19 @@ export function Planner({ selection, clearSelection, browse }: {
           }}>
             <label>Start time<input type="time" name="start" defaultValue={entry.start} /></label>
             <label>End time<input type="time" name="end" defaultValue={entry.end} /></label>
-            <button className="as03-button" disabled={busy}>Save time</button>
+            <button className="as03-button" disabled={locked}>Save time</button>
             <button className="as03-text-button" type="button" onClick={() => setEditing(undefined)}>Cancel</button>
           </form> : <div className="as03-row">
-            <button className="as03-outline" disabled={busy} onClick={() => setEditing(entry.id)}>Edit time</button>
-            <button className="as03-outline" disabled={busy || index === 0} aria-label="Move up" onClick={() => edit({ action: "move", entryId: entry.id, position: index - 1 }, "Entry moved.")}><ArrowUp size={16} /></button>
-            <button className="as03-outline" disabled={busy || index === plan.entries.length - 1} aria-label="Move down" onClick={() => edit({ action: "move", entryId: entry.id, position: index + 1 }, "Entry moved.")}><ArrowDown size={16} /></button>
-            <button className="as03-text-button" disabled={busy} onClick={() => edit({ action: "remove", entryId: entry.id }, "Entry removed.")}>Remove</button>
+            <button className="as03-outline" disabled={locked} onClick={() => setEditing(entry.id)}>Edit time</button>
+            <button className="as03-outline" disabled={locked || index === 0} aria-label="Move up" onClick={() => edit({ action: "move", entryId: entry.id, position: index - 1 }, "Entry moved.")}><ArrowUp size={16} /></button>
+            <button className="as03-outline" disabled={locked || index === plan.entries.length - 1} aria-label="Move down" onClick={() => edit({ action: "move", entryId: entry.id, position: index + 1 }, "Entry moved.")}><ArrowDown size={16} /></button>
+            <button className="as03-text-button" disabled={locked} onClick={() => edit({ action: "remove", entryId: entry.id }, "Entry removed.")}>Remove</button>
           </div>}
         </li>)}
       </ol>
       <div className="as03-row">
         <button className="as03-button" onClick={browse}>Explore destinations <ChevronRight size={17} /></button>
-        <button className="as03-text-button" disabled={busy} onClick={() => setConfirmDelete(true)}>Delete itinerary</button>
+        <button className="as03-text-button" disabled={locked} onClick={() => setConfirmDelete(true)}>Delete itinerary</button>
       </div>
       {confirmDelete && <div className="as03-panel as03-row">
         <p>Delete this itinerary and all its entries?</p>
