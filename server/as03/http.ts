@@ -8,6 +8,45 @@ import { Application } from "./system.ts";
 
 const prefix = "/api/as03/";
 const staffCookie = "as03_staff";
+const fixedRoutes = new Set(["destinations", "events", "records", "staff/session", "staff/records", "itineraries"]);
+
+export type FailureLog = {
+  event: "as03.request_failed";
+  time: string;
+  method: string;
+  route: string;
+  status: number;
+  recordId?: string;
+  fields?: string[];
+  code?: string;
+};
+
+export function writeFailure(entry: FailureLog) {
+  console.error(JSON.stringify(entry));
+}
+
+function describeRoute(url = "") {
+  const path = url.split("?")[0].split("#")[0].slice(prefix.length);
+  if (fixedRoutes.has(path)) return { route: `${prefix}${path}` };
+  const record = /^staff\/records\/([\w-]{1,100})(\/publish|\/withdraw)?$/.exec(path);
+  if (record) return { route: `${prefix}staff/records/:id${record[2] ?? ""}`, recordId: record[1] };
+  if (/^itineraries\/[\w-]{1,100}$/.test(path)) return { route: `${prefix}itineraries/:id` };
+  return { route: `${prefix}:unmatched` };
+}
+
+function failure(request: IncomingMessage, status: number, error: unknown): FailureLog {
+  const entry: FailureLog = {
+    event: "as03.request_failed", time: new Date().toISOString(),
+    method: /^[A-Z]{1,10}$/.test(request.method ?? "") ? request.method! : "OTHER",
+    ...describeRoute(request.url), status,
+  };
+  if (error instanceof InputError && error.issues) entry.fields = Object.keys(error.issues).sort();
+  if (!(error instanceof InputError) && error instanceof Error) {
+    const code = (error as { code?: unknown }).code;
+    entry.code = typeof code === "string" && /^[A-Z0-9_]{1,40}$/.test(code) ? code : error.name.replace(/[^\w]/g, "").slice(0, 40) || "Error";
+  }
+  return entry;
+}
 
 async function readJson(request: IncomingMessage) {
   if (request.headers["content-type"]?.split(";")[0] !== "application/json")
@@ -48,7 +87,7 @@ function writeStaff(response: ServerResponse, token: string, age: number) {
   response.setHeader("Set-Cookie", `${staffCookie}=${token}; Path=${prefix}; Max-Age=${age}; HttpOnly; SameSite=Strict`);
 }
 
-export function startAS03(root: string) {
+export function startAS03(root: string, log: (entry: FailureLog) => void = writeFailure) {
   const profile = process.env.AS03_DATA_PROFILE ?? "local";
   if (!/^[a-zA-Z0-9_-]{1,40}$/.test(profile)) throw new Error("Choose a valid AS03 data profile name.");
   const directory = join(root, ".as03-data");
@@ -143,9 +182,10 @@ export function startAS03(root: string) {
         throw new InputError("This operation is unavailable.", 404);
       })().catch((error: unknown) => {
         if (response.destroyed || response.headersSent) return;
-        if (error instanceof InputError) return send(response, error.status, { message: error.message, issues: error.issues });
-        console.error("AS03 request failed.");
-        return send(response, 500, { message: "The system could not complete the request. Try again." });
+        const status = error instanceof InputError ? error.status : 500;
+        log(failure(request, status, error));
+        if (error instanceof InputError) return send(response, status, { message: error.message, issues: error.issues });
+        return send(response, status, { message: "The system could not complete the request. Try again." });
       });
     },
   };
