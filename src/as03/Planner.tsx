@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowDown, ArrowUp, CalendarDays, ChevronRight, Copy, MapPin, RefreshCw } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarDays, ChevronRight, Copy, MapPin, RefreshCw, TriangleAlert } from "lucide-react";
 
 import { api, errorMessage } from "./client";
+import { conflictDetails } from "./conflicts";
 import type { ReviewedPlan, TourismItem } from "./contracts";
 import { describePlanChanges, isStale } from "./recovery";
 
@@ -136,6 +137,7 @@ export function Planner({ selection, clearSelection, browse }: {
   }
 
   const shownDate = dateInput ?? { date: plan?.date ?? "", provisional: plan?.provisional ?? true };
+  const { pairs, partners } = conflictDetails(plan);
 
   return <div className="as03-stack">
     <div className="as03-row as03-section-title">
@@ -187,11 +189,22 @@ export function Planner({ selection, clearSelection, browse }: {
           void run(async () => setPlan(await api<ReviewedPlan>(`itineraries/${link.id}`, { guest: link.guest })), "Itinerary refreshed.");
         }}><RefreshCw size={16} /> Refresh status</button>
       </div>
-      {plan.conflicts.length > 0 && <p role="alert" className="as03-error">{plan.conflicts.length} time conflict{plan.conflicts.length === 1 ? "" : "s"}. Adjust the overlapping stops.</p>}
+      {pairs.length > 0 && <section role="alert" className="as03-conflicts" aria-labelledby="as03-conflict-title">
+        <h3 id="as03-conflict-title"><TriangleAlert size={18} aria-hidden="true" /> {pairs.length} time conflict{pairs.length === 1 ? "" : "s"}. Adjust the overlapping stops.</h3>
+        <ul>{pairs.map(({ first, second }) => <li key={`${first.id}:${second.id}`}>
+          <strong>{first.title}</strong> ({first.interval}) overlaps <strong>{second.title}</strong> ({second.interval}).
+        </li>)}</ul>
+      </section>}
       {!plan.entries.length && <p>Browse destinations or events to add your first stop.</p>}
       <ol className="as03-entries">
-        {plan.entries.map((entry, index) => <li key={entry.id} className="as03-panel" aria-label={entry.title}>
+        {plan.entries.map((entry, index) => {
+          const clashes = partners.get(entry.id);
+          return <li key={entry.id} className={clashes ? "as03-panel as03-conflict" : "as03-panel"} aria-label={entry.title}
+            aria-describedby={clashes ? `as03-conflict-${entry.id}` : undefined}>
           <p className="as03-meta">{entry.start ? `${entry.start}–${entry.end} MYT` : "Time undecided"}</p>
+          {clashes && <p className="as03-conflict-note" id={`as03-conflict-${entry.id}`}>
+            <TriangleAlert size={16} aria-hidden="true" /> Time conflict: overlaps {clashes.map(({ title, interval }) => `${title} (${interval})`).join("; ")}
+          </p>}
           <h3>{entry.title}</h3>
           {entry.location && <p className="as03-meta"><MapPin size={16} aria-hidden="true" /> {entry.location}</p>}
           {entry.notice && <p className="as03-status">{entry.notice === "unavailable" ? "Current information unavailable" : `Event ${entry.notice}`}</p>}
@@ -210,7 +223,8 @@ export function Planner({ selection, clearSelection, browse }: {
             <button className="as03-outline" disabled={locked || index === plan.entries.length - 1} aria-label="Move down" onClick={() => edit({ action: "move", entryId: entry.id, position: index + 1 }, "Entry moved.")}><ArrowDown size={16} /></button>
             <button className="as03-text-button" disabled={locked} onClick={() => edit({ action: "remove", entryId: entry.id }, "Entry removed.")}>Remove</button>
           </div>}
-        </li>)}
+        </li>;
+        })}
       </ol>
       <div className="as03-row">
         <button className="as03-button" onClick={browse}>Explore destinations <ChevronRight size={17} /></button>
