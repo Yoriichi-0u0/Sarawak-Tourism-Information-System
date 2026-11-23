@@ -1,3 +1,5 @@
+import { fieldSpec, fieldSpecs } from "../shared/catalogue.ts";
+
 export const categories = {
   destination: "Destination",
   event: "Event",
@@ -55,27 +57,15 @@ export function destinationInterests(catalogue: readonly TourismItem[]): string[
   return [...interests.values()].sort((first, second) => first.localeCompare(second));
 }
 
-const details = {
-  destination: ["location", "interest", "summary", "activities", "image", "provider"],
-  event: ["destinationIds", "venue", "status", "startsAt", "summary", "provider"],
-  accommodation: ["destinationIds", "accommodationType", "summary", "provider"],
-  transportation: ["destinationIds", "operator", "route", "schedule", "provider"],
-  dining: ["destinationIds", "cuisine", "location", "dietary", "hours"],
-  visitor: ["guidanceCategory", "area", "destinationIds", "summary", "provider"],
-} as const;
+export const fieldLabels: Record<string, string> = Object.fromEntries(
+  (Object.keys(categories) as RecordKind[]).flatMap((kind) => fieldSpecs(kind).map(({ key, label }) => [key, label])));
 
-export const fieldLabels: Record<string, string> = {
-  title: "Title", location: "Location", interest: "Interest category",
-  summary: "Description", activities: "Activities", image: "Photo", provider: "External provider URL",
-  destinationIds: "Related destinations", venue: "Venue", status: "Event status",
-  startsAt: "Start date and time", accommodationType: "Accommodation type",
-  operator: "Operator", route: "Route description", schedule: "Schedule",
-  cuisine: "Cuisine", dietary: "Dietary details", hours: "Opening hours",
-  guidanceCategory: "Guidance category", area: "Coverage",
-};
+export function editableFields(kind: RecordKind): string[] {
+  return fieldSpecs(kind).map(({ key }) => key);
+}
 
-export function editableFields(kind: RecordKind) {
-  return ["title", ...details[kind]];
+export function labelFor(kind: RecordKind, key: string): string {
+  return fieldSpec(kind, key)?.label ?? fieldLabels[key] ?? key;
 }
 
 export function isRecordKind(value: unknown): value is RecordKind {

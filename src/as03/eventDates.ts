@@ -1,3 +1,5 @@
+import { isDateOrDateTime } from "../shared/catalogue.ts";
+
 const months = ["January", "February", "March", "April", "May", "June",
   "July", "August", "September", "October", "November", "December"];
 
@@ -8,6 +10,7 @@ export function formatDate(value: string): string | undefined {
 }
 
 export function formatStart(value: string): string | undefined {
+  if (/^\d{4}-\d{2}-\d{2}$/.test(value)) return isDateOrDateTime(value) ? formatDate(value) : undefined;
   const parts = /^(\d{4}-\d{2}-\d{2})T(\d{2}:\d{2})$/.exec(value);
   const date = parts && formatDate(parts[1]);
   if (parts && date) return `${date}, ${parts[2]} MYT`;

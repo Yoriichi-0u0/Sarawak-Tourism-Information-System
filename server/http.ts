@@ -24,13 +24,13 @@ export function writeFailure(entry: FailureLog) {
 const fixedRoutes = new Set([
   "auth/session", "auth/register", "auth/login", "auth/logout", "auth/recover",
   "account", "account/password", "account/recovery-codes", "account/delete",
-  "staff/records", "admin/staff", "itineraries",
+  "staff/records", "admin/staff", "itineraries", "journeys", "places",
 ]);
 
 export function describeRoute(path: string): { route: string; recordId?: string } {
   if (fixedRoutes.has(path)) return { route: `${prefix}${path}` };
-  const catalog = /^catalog\/([a-z]{1,20})(\/[\w-]{1,100})?$/.exec(path);
-  if (catalog && isRecordKind(catalog[1])) return { route: `${prefix}catalog/${catalog[1]}${catalog[2] ? "/:id" : ""}` };
+  const catalog = /^catalog\/([a-z]{1,20})(\/[\w-]{1,100})?(\/related)?$/.exec(path);
+  if (catalog && isRecordKind(catalog[1])) return { route: `${prefix}catalog/${catalog[1]}${catalog[2] ? "/:id" : ""}${catalog[3] ?? ""}` };
   const record = /^staff\/records\/([\w-]{1,100})(\/publish|\/withdraw|\/history)?$/.exec(path);
   if (record) return { route: `${prefix}staff/records/:id${record[2] ?? ""}`, recordId: record[1] };
   if (/^admin\/staff\/[\w-]{1,100}$/.test(path)) return { route: `${prefix}admin/staff/:id` };
@@ -128,19 +128,21 @@ export function createHandler(app: Application, options: HandlerOptions = {}) {
         json(status, { account: result.account, ...extra }, new Headers({ "Set-Cookie": cookie(result.session, maxAge(result.account), secure) }));
       const cleared = (payload: unknown) => json(200, payload, new Headers({ "Set-Cookie": cookie("", 0, secure) }));
 
-      const catalog = /^catalog\/([a-z]{1,20})(?:\/([\w-]{1,100}))?$/.exec(path);
+      const catalog = /^catalog\/([a-z]{1,20})(?:\/([\w-]{1,100}))?(\/related)?$/.exec(path);
       if (method === "GET" && catalog) {
-        const [, kind, id] = catalog;
+        const [, kind, id, related] = catalog;
         if (!isRecordKind(kind)) throw new InputError("Choose a record category.");
+        if (id && related) return json(200, await app.catalog.related(kind, id));
         if (id) {
           const record = await app.catalog.getPublishedRecord(id);
           if (!record || record.kind !== kind) throw new InputError("This information is unavailable.", 404);
           return json(200, record);
         }
-        if (kind === "destination") return json(200, await app.catalog.findDestinations(filters));
-        if (kind === "event") return json(200, await app.catalog.findEvents(filters));
-        return json(200, await app.catalog.listPublished(kind));
+        if (related) throw new InputError("This operation is unavailable.", 404);
+        return json(200, await app.catalog.search(kind, filters));
       }
+      if (method === "GET" && path === "journeys") return json(200, await app.catalog.journeys(filters));
+      if (method === "GET" && path === "places") return json(200, await app.catalog.places());
 
       if (method === "GET" && path === "auth/session") {
         const account = await app.accounts.resolve(session);

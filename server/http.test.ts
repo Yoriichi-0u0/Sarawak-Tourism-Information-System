@@ -346,3 +346,18 @@ test("withdrawal and category errors use distinct HTTP statuses", async (t) => {
     "409 /api/v1/staff/records/:id/withdraw sample-dining",
   ]);
 });
+
+test("discovery routes expose filters, related records, journeys and places", async (t) => {
+  const { call, logs } = await serve(t);
+  assert.deepEqual((await call({ path: "/api/v1/catalog/transportation?mode=shuttle" })).body.map(({ id }: { id: string }) => id), ["sample-transport"]);
+  assert.deepEqual((await call({ path: "/api/v1/catalog/transportation?mode=flight" })).body, []);
+  const related = await call({ path: "/api/v1/catalog/destination/waterfront/related" });
+  assert.equal(related.status, 200);
+  assert.deepEqual(Object.keys(related.body).sort(), ["accommodation", "dining", "event", "transportation"]);
+  const journeys = await call({ path: "/api/v1/journeys?from=kuching%20waterfront&to=cultural%20village" });
+  assert.deepEqual(journeys.body.direct.map(({ record }: { record: { id: string } }) => record.id), ["sample-transport"]);
+  assert.deepEqual((await call({ path: "/api/v1/places" })).body, ["Kuching Waterfront", "Sarawak Cultural Village"]);
+  assert.equal((await call({ path: "/api/v1/journeys?from=&to=x" })).status, 400);
+  assert.equal((await call({ path: "/api/v1/catalog/destination/missing/related" })).status, 404);
+  assert.deepEqual(logs.map(({ route, status }) => `${status} ${route}`), ["400 /api/v1/journeys", "404 /api/v1/catalog/destination/:id/related"]);
+});

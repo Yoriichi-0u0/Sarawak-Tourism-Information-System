@@ -1,7 +1,8 @@
 import { randomUUID } from "node:crypto";
 
 import { safeProvider } from "../src/domain.ts";
-import { editableFields, fieldLabels } from "../src/as03/contracts.ts";
+import { editableFields, labelFor } from "../src/as03/contracts.ts";
+import { fieldSpecs, isDateOrDateTime, splitTags, type CatalogueKind } from "../src/shared/catalogue.ts";
 import type { DateNotice, Entry, Fields, Notice, Plan, PlanSettings, RecordKind, TourismItem } from "../src/as03/contracts.ts";
 
 export class InputError extends Error {
@@ -22,9 +23,15 @@ export function validDate(value: unknown): value is string {
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
 }
 
+/** A published event start: a date (all-day) or a date and Kuching time. */
 export function validStart(value: unknown): value is string {
-  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d$/.test(value) &&
-    validDate(value.slice(0, 10));
+  return typeof value === "string" && isDateOrDateTime(value);
+}
+
+function httpsWithoutCredentials(value: string) {
+  if (!safeProvider(value)) return false;
+  const url = new URL(value);
+  return !url.username && !url.password;
 }
 
 export function planSettings(value: unknown): PlanSettings {
@@ -44,6 +51,8 @@ function readInterval(start: unknown, end: unknown): [string, string] {
 }
 
 export abstract class TourismRecord {
+  abstract readonly kind: CatalogueKind;
+
   constructor(readonly fields: Fields) {}
 
   get destinationIds(): string[] {
@@ -53,10 +62,24 @@ export abstract class TourismRecord {
   protected required(...keys: string[]): Fields {
     const issues: Fields = {};
     for (const key of ["title", ...keys])
-      if (!this.fields[key]) issues[key] = `Enter ${fieldLabels[key].toLowerCase()}.`;
-    const provider = this.fields.provider;
-    if (provider && (!safeProvider(provider) || new URL(provider).username || new URL(provider).password))
-      issues.provider = "Enter an HTTPS provider URL without credentials.";
+      if (!this.fields[key]) issues[key] = `Enter ${labelFor(this.kind, key).toLowerCase()}.`;
+    for (const spec of fieldSpecs(this.kind)) {
+      const value = this.fields[spec.key];
+      if (!value || issues[spec.key]) continue;
+      if (spec.type === "url" && !httpsWithoutCredentials(value))
+        issues[spec.key] = spec.key === "provider" ? "Enter an HTTPS provider URL without credentials." : "Enter an HTTPS link without credentials.";
+      if (spec.type === "select" && spec.strict && !spec.options?.some(([option]) => option === value))
+        issues[spec.key] = `Choose a valid ${spec.label.toLowerCase()}.`;
+      if (spec.type === "tags" && splitTags(value).some((tag) => !spec.options?.some(([option]) => option === tag)))
+        issues[spec.key] = `Choose ${spec.label.toLowerCase()} from the list.`;
+      if (spec.type === "datetime" && !isDateOrDateTime(value))
+        issues[spec.key] = "Enter a valid Kuching date and time.";
+    }
+    if (this.fields.reviewedOn && !validDate(this.fields.reviewedOn)) issues.reviewedOn = "Enter the date the information was checked.";
+    if (this.fields.provenance === "verified" || this.fields.provenance === "reported") {
+      if (!this.fields.sourceName) issues.sourceName = "Name the source of this information.";
+      if (!this.fields.sourceUrl) issues.sourceUrl = "Link to the source of this information.";
+    }
     return issues;
   }
 
@@ -68,9 +91,12 @@ export abstract class TourismRecord {
     for (const key of editableFields(kind)) {
       const candidate = raw[key] ?? "";
       if (typeof candidate !== "string" || candidate.length > 2000)
-        throw new InputError(`Enter a valid ${fieldLabels[key].toLowerCase()}.`);
+        throw new InputError(`Enter a valid ${labelFor(kind, key).toLowerCase()}.`);
       fields[key] = candidate.trim();
     }
+    for (const spec of fieldSpecs(kind))
+      if (spec.type === "tags") fields[spec.key] = splitTags(fields[spec.key]).join(",");
+    fields.provenance ||= "illustrative";
     fields.destinationIds = (fields.destinationIds ?? "").split(",")
       .map((value) => value.trim()).filter(Boolean).join(",");
     return new subclasses[kind](fields);
@@ -78,25 +104,34 @@ export abstract class TourismRecord {
 }
 
 class Destination extends TourismRecord {
+  readonly kind = "destination";
+
   validateForPublication() {
     return this.required("location", "interest", "summary");
   }
 }
 
 class Event extends TourismRecord {
+  readonly kind = "event";
+
   validateForPublication() {
     const issues = this.required("venue", "status");
     if (this.destinationIds.length !== 1) issues.destinationIds = "Choose one hosting destination.";
-    const { status, startsAt } = this.fields;
+    const { status, startsAt, endsAt } = this.fields;
     if (!["scheduled", "postponed", "cancelled"].includes(status))
       issues.status = "Choose a valid event status.";
     if ((status === "scheduled" || startsAt) && !validStart(startsAt))
       issues.startsAt = "Enter a valid Kuching date and time.";
+    if (endsAt && !startsAt) issues.endsAt = "Enter the start before the end.";
+    else if (endsAt && validStart(startsAt) && validStart(endsAt) && endsAt.slice(0, 10) < startsAt.slice(0, 10))
+      issues.endsAt = "Enter an end that is not before the start.";
     return issues;
   }
 }
 
 class Accommodation extends TourismRecord {
+  readonly kind = "accommodation";
+
   validateForPublication() {
     const issues = this.required("accommodationType", "summary");
     if (this.destinationIds.length !== 1) issues.destinationIds = "Choose one destination.";
@@ -105,12 +140,16 @@ class Accommodation extends TourismRecord {
 }
 
 class Transportation extends TourismRecord {
+  readonly kind = "transportation";
+
   validateForPublication() {
-    return this.required("operator", "route", "destinationIds");
+    return this.required("mode", "operator", "from", "to", "route", "destinationIds");
   }
 }
 
 class DiningOption extends TourismRecord {
+  readonly kind = "dining";
+
   validateForPublication() {
     const issues = this.required("cuisine", "location");
     if (this.destinationIds.length !== 1) issues.destinationIds = "Choose one destination.";
@@ -119,6 +158,8 @@ class DiningOption extends TourismRecord {
 }
 
 class VisitorInformation extends TourismRecord {
+  readonly kind = "visitor";
+
   constructor(fields: Fields) {
     super(fields.area === "sarawak" ? { ...fields, destinationIds: "" } : fields);
   }

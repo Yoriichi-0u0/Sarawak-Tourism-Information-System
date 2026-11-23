@@ -523,11 +523,13 @@ test("an event entry ignores a malformed published start", async () => {
   const entry = new ItineraryEntry({ id: "e", recordId: "x", kind: "event", start: "", end: "" });
   const record = (startsAt: string, status = "scheduled"): TourismItem =>
     ({ id: "x", kind: "event", version: 1, fields: { title: "Synthetic", status, startsAt } });
-  for (const startsAt of ["", "2026-02-30T10:00", "2026-12-05", "2026-12-05T24:00", "2026-12-05T10:00Z"]) {
+  for (const startsAt of ["", "2026-02-30T10:00", "2026-02-30", "2026-12-05T24:00", "2026-12-05T10:00Z"]) {
     assert.equal(entry.publishedStart(record(startsAt)), undefined, startsAt);
     assert.equal(entry.assessEventDate(record(startsAt), "2026-11-27"), undefined, startsAt);
   }
   assert.equal(entry.publishedStart(record("2026-12-05T23:30")), "2026-12-05T23:30");
+  assert.equal(entry.publishedStart(record("2026-12-05")), "2026-12-05", "an all-day event start is a date without a time");
+  assert.equal(entry.assessEventDate(record("2026-11-28"), "2026-11-27"), "different-date");
   assert.equal(entry.assessEventDate(record("2026-11-27T23:30"), "2026-11-27"), undefined);
   assert.equal(entry.assessEventDate(record("2026-11-28T00:00"), "2026-11-27"), "different-date");
   assert.equal(entry.publishedStart(undefined), undefined);

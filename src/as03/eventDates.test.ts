@@ -15,7 +15,8 @@ test("published local start times keep their Kuching wall-clock time", () => {
   assert.equal(formatStart("2026-12-05T10:00"), "5 December 2026, 10:00 MYT");
   assert.equal(formatStart("2026-11-27T00:15"), "27 November 2026, 00:15 MYT");
   assert.equal(formatStart("2026-11-27T23:45"), "27 November 2026, 23:45 MYT");
-  for (const invalid of ["", "2026-12-05", "2026-12-05T10:00Z", "2026-12-05 10:00"])
+  assert.equal(formatStart("2026-12-05"), "5 December 2026", "an all-day event shows its date without inventing a time");
+  for (const invalid of ["", "2026-02-30", "2026-12-05T10:00Z", "2026-12-05 10:00"])
     assert.equal(formatStart(invalid), undefined, invalid);
 });
 

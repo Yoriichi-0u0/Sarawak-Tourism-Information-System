@@ -1,57 +1,15 @@
 import { randomUUID } from "node:crypto";
 
 import type { Plan, RecordKind, ReviewedPlan, TourismItem } from "../src/as03/contracts.ts";
+
+export { TourismCatalog };
 import { AccountService, defaultHashCost, newToken, type Clock, type HashCost } from "./accounts.ts";
 import { migrate, type Db } from "./db.ts";
-import { InputError, Itinerary, ItineraryEntry, object, planSettings, TourismRecord, validDate } from "./domain.ts";
+import { TourismCatalog } from "./catalog.ts";
+import { InputError, Itinerary, ItineraryEntry, object, planSettings, TourismRecord } from "./domain.ts";
+import { syncContent } from "./content/sync.ts";
 import { seedCatalogue } from "./seed.ts";
 import { ItineraryRepository, TourismRepository, type PlanAccess } from "./repositories.ts";
-
-function filterText(value: unknown): string {
-  if (typeof value !== "string" || value.length > 200) throw new InputError("Enter shorter search criteria.");
-  return value.trim().toLowerCase();
-}
-
-export class TourismCatalog {
-  constructor(private readonly repository: TourismRepository) {}
-
-  async findDestinations(filters: { query?: unknown; location?: unknown; interest?: unknown } = {}) {
-    const query = filterText(filters.query ?? "");
-    const location = filterText(filters.location ?? "");
-    const interest = filterText(filters.interest ?? "");
-    return (await this.repository.searchPublished("destination")).filter(({ fields }) =>
-      (fields.title ?? "").toLowerCase().includes(query) &&
-      (fields.location ?? "").toLowerCase().includes(location) &&
-      (fields.interest ?? "").toLowerCase().includes(interest),
-    );
-  }
-
-  async findEvents(filters: { query?: unknown; location?: unknown; date?: unknown } = {}) {
-    const query = filterText(filters.query ?? "");
-    const location = filterText(filters.location ?? "");
-    const date = filters.date ?? "";
-    if (date !== "" && !validDate(date)) throw new InputError("Enter a valid date.");
-    const destinations = new Map((await this.findDestinations()).map((item) => [item.id, item.fields.location]));
-    return (await this.repository.searchPublished("event")).filter(({ fields }) =>
-      (fields.title ?? "").toLowerCase().includes(query) &&
-      `${fields.venue ?? ""} ${destinations.get(fields.destinationIds) ?? ""}`.toLowerCase().includes(location) &&
-      (!date || (fields.startsAt ?? "").slice(0, 10) === date),
-    );
-  }
-
-  getPublishedRecord(id: string) {
-    return this.repository.findPublished(id);
-  }
-
-  listPublished(kind: RecordKind) {
-    return this.repository.searchPublished(kind);
-  }
-
-  async getPublishedEvent(id: string) {
-    const record = await this.getPublishedRecord(id);
-    return record?.kind === "event" ? record : undefined;
-  }
-}
 
 export class ManagementAccessControl {
   constructor(private readonly accounts: AccountService) {}
@@ -215,7 +173,7 @@ export type ApplicationOptions = {
   clock?: Clock;
   hashCost?: HashCost;
   admin?: { email: string; password: string; displayName?: string };
-  seed?: boolean;
+  seed?: boolean | "fixture" | "content";
   migrate?: boolean;
 };
 
@@ -240,7 +198,9 @@ export class Application {
     const app = new Application(options.db, options.clock ?? (() => new Date()), options.hashCost ?? defaultHashCost);
     if (options.migrate !== false) await migrate(options.db);
     if (options.admin) await app.accounts.bootstrapAdmin(options.admin.email, options.admin.password, options.admin.displayName);
-    if (options.seed !== false) await seedCatalogue(app.db, app.records);
+    if (options.seed === "content") {
+      if (!(await app.db.query("select 1 from stis.tourism_record limit 1")).length) await syncContent(app.records);
+    } else if (options.seed !== false) await seedCatalogue(app.db, app.records);
     return app;
   }
 

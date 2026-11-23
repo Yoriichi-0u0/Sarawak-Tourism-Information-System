@@ -24,7 +24,7 @@ export async function startRuntime(root: string, env: NodeJS.ProcessEnv = proces
   const admin = env.STIS_ADMIN_EMAIL && env.STIS_ADMIN_PASSWORD
     ? { email: env.STIS_ADMIN_EMAIL, password: env.STIS_ADMIN_PASSWORD, displayName: env.STIS_ADMIN_NAME }
     : undefined;
-  const app = await Application.open({ db, admin, migrate: !hosted, seed: !hosted });
+  const app = await Application.open({ db, admin, migrate: !hosted, seed: hosted ? false : "content" });
   const allowedHosts = options.allowedHosts ?? env.STIS_ALLOWED_HOSTS?.split(",").map((host) => host.trim()).filter(Boolean);
   return { handle: createHandler(app, { ...options, allowedHosts }), close: () => app.close() };
 }

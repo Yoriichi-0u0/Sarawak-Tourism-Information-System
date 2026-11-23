@@ -35,7 +35,8 @@ export async function seedCatalogue(db: Db, repo: TourismRepository) {
     });
     await add("sample-transport", "transportation", {
       title: "Kuching Heritage Shuttle", destinationIds: "waterfront,culture",
-      operator: "Sample Shuttle", route: "Waterfront to Cultural Village",
+      operator: "Sample Shuttle", route: "Waterfront to Cultural Village", mode: "shuttle",
+      from: "Kuching Waterfront", to: "Sarawak Cultural Village",
     });
     await add("sample-dining", "dining", {
       title: "Riverfront Cafe", destinationIds: "waterfront", cuisine: "Sarawakian", location: "Kuching",

@@ -1,13 +1,9 @@
+import { options } from "../shared/catalogue";
 import { editableFields } from "./contracts";
 import type { Fields, RecordKind } from "./contracts";
 
-const options: Record<string, readonly (readonly [string, string])[]> = {
-  area: [["sarawak", "Across Sarawak"], ["destination", "Destination-specific"]],
-  status: [["scheduled", "Scheduled"], ["postponed", "Postponed"], ["cancelled", "Cancelled"]],
-};
-
-export function optionsFor(field: string) {
-  return Object.hasOwn(options, field) ? options[field] : undefined;
+export function optionsFor(field: string): readonly (readonly [string, string])[] | undefined {
+  return Object.hasOwn(options, field) ? options[field as keyof typeof options] : undefined;
 }
 
 export function displayValue(field: string, value: string): string {

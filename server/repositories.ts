@@ -38,6 +38,15 @@ export class TourismRepository {
     return row && item(row);
   }
 
+  async publishedLinkedTo(destinationId: string): Promise<TourismItem[]> {
+    const rows = await this.db.query<StoredRecord>(`select r.id, r.kind, v.version, v.payload from stis.version_destination d
+      join stis.record_state s on s.record_id = d.record_id and s.published = d.version
+      join stis.tourism_record r on r.id = d.record_id
+      join stis.record_version v on v.record_id = r.id and v.version = s.published
+      where d.destination_id = $1 order by r.kind, lower(v.payload->>'title'), r.id`, [destinationId]);
+    return rows.map(item);
+  }
+
   async listDrafts(): Promise<StaffRecord[]> {
     const rows = await this.db.query<StoredRecord>(`${draftSelect} order by r.kind, lower(v.payload->>'title'), r.id`);
     return rows.map(staffRecord);
