@@ -60,12 +60,17 @@ test("edits are not restored when the record cannot be matched safely", () => {
   assert.deepEqual(planRestore(orphan, [record(2, {})]), { action: "unavailable" });
 });
 
-test("the AS03 client never writes to browser storage", () => {
+test("the AS03 client never writes staff or draft data to browser storage", () => {
   const directory = fileURLToPath(new URL(".", import.meta.url));
   const sources = readdirSync(directory).filter((file) => /\.tsx?$/.test(file) && !file.endsWith(".test.ts"));
   assert.ok(sources.includes("Staff.tsx") && sources.length >= 10, sources.join());
   for (const name of readdirSync(directory).filter((file) => /\.tsx?$/.test(file) && !file.endsWith(".test.ts"))) {
     const source = readFileSync(join(directory, name), "utf8");
+    if (name === "theme.ts") {
+      assert.doesNotMatch(source, /sessionStorage|indexedDB|caches\.|document\.cookie|contracts|api\(/, name);
+      assert.deepEqual([...source.matchAll(/"(stis-[\w-]+)"/g)].map(([, key]) => key), ["stis-theme"], "theme.ts stores only the theme choice");
+      continue;
+    }
     assert.doesNotMatch(source, /localStorage|sessionStorage|indexedDB|caches\.|document\.cookie/, name);
   }
 });

@@ -1,11 +1,13 @@
-import { useEffect, useState } from "react";
-import { CalendarDays, Compass, Map, ShieldCheck } from "lucide-react";
+import { useEffect, useLayoutEffect, useState } from "react";
+import { CalendarDays, Compass, Map, Monitor, Moon, ShieldCheck, Sun } from "lucide-react";
 
 import { Catalogue } from "./Catalogue";
 import { Planner, readLink } from "./Planner";
 import { Staff } from "./Staff";
 import { TravelInformation } from "./TravelInformation";
 import type { TourismItem } from "./contracts";
+import { applyTheme, browserStorage, readTheme, saveTheme, themeChoices } from "./theme";
+import type { ThemeChoice } from "./theme";
 import "./as03.css";
 
 const sections = [
@@ -15,6 +17,23 @@ const sections = [
   { key: "staff", name: "Staff", icon: ShieldCheck },
 ] as const;
 type Section = typeof sections[number]["key"];
+const themeIcons = { auto: Monitor, light: Sun, dark: Moon };
+
+function ThemeSwitch() {
+  const [choice, setChoice] = useState<ThemeChoice>(() => readTheme(browserStorage()));
+  useLayoutEffect(() => { applyTheme(choice, document.documentElement); }, [choice]);
+  return <fieldset className="as03-theme">
+    <legend className="sr-only">Colour theme</legend>
+    {themeChoices.map(([value, label]) => {
+      const Icon = themeIcons[value];
+      return <label key={value}>
+        <input type="radio" name="as03-theme" value={value} checked={choice === value}
+          onChange={() => { setChoice(value); saveTheme(value, browserStorage()); }} />
+        <Icon size={15} aria-hidden="true" /><span>{label}</span>
+      </label>;
+    })}
+  </fieldset>;
+}
 
 export default function Experience() {
   const [section, setSection] = useState<Section>(() => readLink() ? "itinerary" : "destinations");
@@ -46,6 +65,7 @@ export default function Experience() {
           <button key={key} aria-current={section === key ? "page" : undefined} onClick={() => navigate(key)}>
             <Icon size={18} /> {name}
           </button>)}</nav>
+        <ThemeSwitch />
       </div>
     </header>
     <main id="as03-main" className="as03-shell as03-main" tabIndex={-1}>
