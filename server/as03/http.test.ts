@@ -342,3 +342,35 @@ test("the default logger writes one JSON line per failure to standard error", as
   assert.equal(parsed.route, "/api/as03/staff/records");
   assert.equal(parsed.status, 401);
 });
+
+test("withdrawal and category errors use distinct HTTP statuses", async (t) => {
+  const { call, login, logs } = await serve(t);
+  const { cookie } = await login();
+  const headers = { cookie, "content-type": json };
+  const created = await call({ method: "POST", path: "/api/as03/staff/records", headers,
+    body: JSON.stringify({ kind: "dining", fields: { title: "Synthetic HTTP cafe" } }) });
+  assert.equal(created.status, 201);
+  const id = created.body.id as string;
+  const unpublished = await call({ method: "POST", path: `/api/as03/staff/records/${id}/withdraw`, headers });
+  assert.equal(unpublished.status, 409);
+  assert.match(unpublished.body.message, /not published/);
+  assert.equal((await call({ method: "POST", path: "/api/as03/staff/records/missing-record/withdraw", headers })).status, 404);
+  const category = await call({ method: "PUT", path: `/api/as03/staff/records/${id}`, headers,
+    body: JSON.stringify({ kind: "event", version: 1, fields: { title: "Synthetic HTTP cafe" } }) });
+  assert.equal(category.status, 422);
+  assert.match(category.body.message, /category/);
+  const stale = await call({ method: "PUT", path: `/api/as03/staff/records/${id}`, headers,
+    body: JSON.stringify({ kind: "dining", version: 9, fields: { title: "Synthetic HTTP cafe" } }) });
+  assert.equal(stale.status, 409);
+  const withdrawn = await call({ method: "POST", path: "/api/as03/staff/records/sample-dining/withdraw", headers });
+  assert.equal(withdrawn.status, 200);
+  assert.equal(withdrawn.body.publishedVersion, null);
+  assert.equal((await call({ method: "POST", path: "/api/as03/staff/records/sample-dining/withdraw", headers })).status, 409);
+  assert.deepEqual(logs.map(({ route, status, recordId }) => `${status} ${route} ${recordId}`), [
+    `409 /api/as03/staff/records/:id/withdraw ${id}`,
+    "404 /api/as03/staff/records/:id/withdraw missing-record",
+    `422 /api/as03/staff/records/:id ${id}`,
+    `409 /api/as03/staff/records/:id ${id}`,
+    "409 /api/as03/staff/records/:id/withdraw sample-dining",
+  ]);
+});

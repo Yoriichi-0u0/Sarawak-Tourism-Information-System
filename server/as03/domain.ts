@@ -119,6 +119,10 @@ class DiningOption extends TourismRecord {
 }
 
 class VisitorInformation extends TourismRecord {
+  constructor(fields: Fields) {
+    super(fields.area === "sarawak" ? { ...fields, destinationIds: "" } : fields);
+  }
+
   validateForPublication() {
     const issues = this.required("guidanceCategory", "summary", "area");
     if (!["sarawak", "destination"].includes(this.fields.area))

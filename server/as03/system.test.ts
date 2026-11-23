@@ -341,15 +341,16 @@ test("a profile without a configured staff password refuses staff sign-in", (t) 
   assert.throws(() => new Application(":memory:", "too-short"), /12 to 200 characters/);
 });
 
-test("withdrawing a record that was never published is rejected (audit defect D5)", { todo: "D5: withdraw currently succeeds silently" }, (t) => {
+test("withdrawing a record that was never published is rejected (audit defect D5)", (t) => {
   const app = new Application(":memory:", password);
   t.after(() => app.close());
   const staff = app.access.login(password);
   const draft = app.manager.saveDraft(staff, null, "dining", { title: "Unpublished synthetic cafe" }, null);
-  assert.throws(() => app.manager.withdraw(staff, draft.id), isInputError(409));
+  assert.throws(() => app.manager.withdraw(staff, draft.id), isInputError(409, /not published/));
+  assert.deepEqual(app.manager.getDraft(staff, draft.id), draft);
 });
 
-test("Sarawak-wide guidance does not block withdrawing a destination (audit defect D6)", { todo: "D6: general guidance keeps destination links" }, (t) => {
+test("Sarawak-wide guidance does not block withdrawing a destination (audit defect D6)", (t) => {
   const app = new Application(":memory:", password);
   t.after(() => app.close());
   const staff = app.access.login(password);
@@ -361,7 +362,7 @@ test("Sarawak-wide guidance does not block withdrawing a destination (audit defe
   assert.equal(app.catalog.getPublishedRecord("museum"), undefined);
 });
 
-test("changing a saved draft's category reports a category error (audit defect D7)", { todo: "D7: reported as a stale draft" }, (t) => {
+test("changing a saved draft's category reports a category error (audit defect D7)", (t) => {
   const app = new Application(":memory:", password);
   t.after(() => app.close());
   const staff = app.access.login(password);
@@ -536,4 +537,161 @@ test("an event entry ignores a malformed published start", () => {
   assert.equal(entry.publishedStart(undefined), undefined);
   const destination = new ItineraryEntry({ id: "d", recordId: "y", kind: "destination", start: "", end: "" });
   assert.equal(destination.publishedStart(record("2026-12-05T10:00")), undefined);
+});
+
+function fileApp(t: { after: (fn: () => void) => void }, prefix: string) {
+  mkdirSync("test-results", { recursive: true });
+  const directory = mkdtempSync(`test-results/${prefix}-`);
+  const filename = join(directory, "fixture.sqlite");
+  const app = new Application(filename, password);
+  t.after(() => { app.close(); rmSync(directory, { recursive: true }); });
+  return { app, filename };
+}
+
+function snapshot(filename: string) {
+  const db = new DatabaseSync(filename);
+  try {
+    return JSON.stringify(["tourism_record", "record_version", "record_state", "version_destination"]
+      .map((table) => db.prepare(`SELECT * FROM ${table} ORDER BY 1, 2`).all()));
+  } finally { db.close(); }
+}
+
+function links(filename: string, recordId: string) {
+  const db = new DatabaseSync(filename);
+  try {
+    return (db.prepare("SELECT version, destination_id FROM version_destination WHERE record_id = ? ORDER BY 1, 2").all(recordId) as
+      { version: number; destination_id: string }[]).map(({ version, destination_id }) => `${version}:${destination_id}`);
+  } finally { db.close(); }
+}
+
+test("a published record is withdrawn once and keeps its identity and draft history", (t) => {
+  const app = new Application(":memory:", password);
+  t.after(() => app.close());
+  const staff = app.access.login(password);
+  const before = app.manager.getDraft(staff, "sample-dining");
+  assert.equal(before.publishedVersion, before.version);
+  const withdrawn = app.manager.withdraw(staff, "sample-dining");
+  assert.deepEqual(withdrawn, { ...before, publishedVersion: null });
+  assert.equal(app.catalog.getPublishedRecord("sample-dining"), undefined);
+  assert.ok(!app.catalog.listPublished("dining").some(({ id }) => id === "sample-dining"));
+  assert.throws(() => app.manager.withdraw(staff, "sample-dining"), isInputError(409, /not published/));
+  assert.deepEqual(app.manager.getDraft(staff, "sample-dining"), withdrawn);
+  app.manager.publish(staff, withdrawn.id, withdrawn.version);
+  assert.equal(app.catalog.getPublishedRecord("sample-dining")?.fields.title, before.fields.title);
+});
+
+test("withdrawing an unknown record returns 404", (t) => {
+  const app = new Application(":memory:", password);
+  t.after(() => app.close());
+  const staff = app.access.login(password);
+  assert.throws(() => app.manager.withdraw(staff, "missing-record"), isInputError(404, /unavailable/));
+});
+
+test("destination-specific guidance keeps its links and blocks destination withdrawal", (t) => {
+  const { app, filename } = fileApp(t, "as03-guidance-links");
+  const staff = app.access.login(password);
+  const missing = app.manager.saveDraft(staff, null, "visitor", {
+    title: "Synthetic museum tip", area: "destination", guidanceCategory: "Access", summary: "Synthetic.",
+  }, null);
+  assert.throws(() => app.manager.publish(staff, missing.id, missing.version),
+    (error) => isInputError(422)(error) && Boolean((error as InputError).issues?.destinationIds));
+  const guidance = app.manager.saveDraft(staff, missing.id, "visitor", { ...missing.fields, destinationIds: "museum,bako" }, missing.version);
+  assert.equal(guidance.fields.destinationIds, "museum,bako");
+  assert.deepEqual(links(filename, guidance.id), ["2:bako", "2:museum"]);
+  app.manager.publish(staff, guidance.id, guidance.version);
+  assert.throws(() => app.manager.withdraw(staff, "museum"), isInputError(409, /refer to this destination/));
+  assert.ok(app.catalog.getPublishedRecord("museum"));
+  app.manager.withdraw(staff, guidance.id);
+  app.manager.withdraw(staff, "museum");
+  assert.equal(app.catalog.getPublishedRecord("museum"), undefined);
+});
+
+test("Sarawak-wide guidance is saved without destination references", (t) => {
+  const { app, filename } = fileApp(t, "as03-guidance-general");
+  const staff = app.access.login(password);
+  const created = app.manager.saveDraft(staff, null, "visitor", {
+    title: "Synthetic general tip", area: "sarawak", guidanceCategory: "General", summary: "Synthetic.", destinationIds: "museum,bako",
+  }, null);
+  assert.equal(created.fields.destinationIds, "");
+  const revised = app.manager.saveDraft(staff, created.id, "visitor", { ...created.fields, destinationIds: "waterfront" }, created.version);
+  assert.equal(revised.fields.destinationIds, "");
+  assert.deepEqual(links(filename, created.id), []);
+  app.manager.publish(staff, revised.id, revised.version);
+  assert.equal(app.catalog.getPublishedRecord(created.id)?.fields.destinationIds, "");
+});
+
+test("switching guidance to Sarawak-wide clears links only from the new version", (t) => {
+  const { app, filename } = fileApp(t, "as03-guidance-switch");
+  const staff = app.access.login(password);
+  const specific = app.manager.saveDraft(staff, null, "visitor", {
+    title: "Synthetic switching tip", area: "destination", guidanceCategory: "Access", summary: "Synthetic.", destinationIds: "museum",
+  }, null);
+  app.manager.publish(staff, specific.id, specific.version);
+  const general = app.manager.saveDraft(staff, specific.id, "visitor", { ...specific.fields, area: "sarawak" }, specific.version);
+  assert.equal(general.fields.destinationIds, "");
+  assert.equal(general.publishedVersion, 1);
+  assert.deepEqual(links(filename, specific.id), ["1:museum"]);
+  const published = app.catalog.getPublishedRecord(specific.id);
+  assert.deepEqual([published?.version, published?.fields.area, published?.fields.destinationIds], [1, "destination", "museum"]);
+  assert.throws(() => app.manager.withdraw(staff, "museum"), isInputError(409));
+  app.manager.publish(staff, general.id, general.version);
+  assert.equal(app.catalog.getPublishedRecord(specific.id)?.fields.area, "sarawak");
+  app.manager.withdraw(staff, "museum");
+  assert.equal(app.catalog.getPublishedRecord("museum"), undefined);
+});
+
+test("legacy Sarawak-wide guidance published before this fix keeps its links until a new version is published", (t) => {
+  const { app, filename } = fileApp(t, "as03-guidance-legacy");
+  const staff = app.access.login(password);
+  const linked = app.manager.saveDraft(staff, null, "visitor", {
+    title: "Synthetic legacy tip", area: "destination", guidanceCategory: "General", summary: "Synthetic.", destinationIds: "museum",
+  }, null);
+  app.manager.publish(staff, linked.id, linked.version);
+  const fixture = new DatabaseSync(filename);
+  try {
+    fixture.prepare("UPDATE record_version SET payload = json_set(payload, '$.area', 'sarawak') WHERE record_id = ?").run(linked.id);
+  } finally { fixture.close(); }
+  assert.equal(app.catalog.getPublishedRecord(linked.id)?.fields.area, "sarawak");
+  assert.throws(() => app.manager.withdraw(staff, "museum"), isInputError(409), "historical links are not rewritten");
+  const legacy = app.manager.getDraft(staff, linked.id);
+  const resaved = app.manager.saveDraft(staff, legacy.id, "visitor", legacy.fields, legacy.version);
+  app.manager.publish(staff, resaved.id, resaved.version);
+  assert.deepEqual(links(filename, linked.id), ["1:museum"]);
+  app.manager.withdraw(staff, "museum");
+});
+
+test("a category change is a 422 category error, distinct from a stale revision", (t) => {
+  const { app, filename } = fileApp(t, "as03-category");
+  const staff = app.access.login(password);
+  const first = app.manager.saveDraft(staff, null, "dining", { title: "Synthetic cafe", cuisine: "Fusion" }, null);
+  const second = app.manager.saveDraft(staff, first.id, "dining", { ...first.fields, cuisine: "Local" }, first.version);
+  const before = snapshot(filename);
+  assert.throws(() => app.manager.saveDraft(staff, first.id, "event", { title: "Synthetic cafe" }, second.version),
+    isInputError(422, /category of an existing record cannot be changed/));
+  assert.throws(() => app.manager.saveDraft(staff, first.id, "event", { title: "Synthetic cafe" }, first.version),
+    isInputError(422, /category/), "category is checked before the version");
+  assert.throws(() => app.manager.saveDraft(staff, first.id, "dining", { title: "Stale" }, first.version), isInputError(409, /changed/));
+  assert.equal(snapshot(filename), before);
+  const third = app.manager.saveDraft(staff, first.id, "dining", { ...second.fields, hours: "08:00–17:00" }, second.version);
+  assert.deepEqual([third.kind, third.version, third.fields.cuisine, third.fields.hours], ["dining", 3, "Local", "08:00–17:00"]);
+});
+
+test("rejected staff operations leave stored records unchanged", (t) => {
+  const { app, filename } = fileApp(t, "as03-no-partial");
+  const staff = app.access.login(password);
+  const draft = app.manager.saveDraft(staff, null, "dining", { title: "Unpublished synthetic cafe" }, null);
+  const published = app.manager.getDraft(staff, "sample-event");
+  const before = snapshot(filename);
+  const rejected: [() => unknown, number][] = [
+    [() => app.manager.withdraw(staff, draft.id), 409],
+    [() => app.manager.withdraw(staff, "missing-record"), 404],
+    [() => app.manager.withdraw(staff, "culture"), 409],
+    [() => app.manager.saveDraft(staff, draft.id, "event", { title: "x" }, draft.version), 422],
+    [() => app.manager.saveDraft(staff, "sample-event", "event", published.fields, published.version + 5), 409],
+    [() => app.manager.saveDraft(staff, "sample-event", "event", { ...published.fields, destinationIds: "missing-place" }, published.version), 422],
+    [() => app.manager.publish(staff, draft.id, draft.version), 422],
+  ];
+  for (const [operation, status] of rejected) assert.throws(operation, isInputError(status), String(operation));
+  assert.equal(snapshot(filename), before);
+  assert.equal(app.catalog.getPublishedEvent("sample-event")?.version, published.version);
 });

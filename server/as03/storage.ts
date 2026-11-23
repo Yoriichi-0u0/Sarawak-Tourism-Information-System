@@ -124,7 +124,9 @@ export class TourismRepository {
     return this.storage.write(() => {
       const db = this.storage.db;
       const previous = expected === null ? null : this.loadDraft(id);
-      if (previous && (previous.version !== expected || previous.kind !== kind))
+      if (previous && previous.kind !== kind)
+        throw new InputError("The category of an existing record cannot be changed. Create a new record in the other category.", 422);
+      if (previous && previous.version !== expected)
         throw new InputError("This draft changed. Reload it before editing.", 409);
       if (!previous) db.prepare("INSERT INTO tourism_record VALUES (?, ?)").run(id, kind);
       const version = (previous?.version ?? 0) + 1;
@@ -160,13 +162,16 @@ export class TourismRepository {
   withdraw(id: string): StaffRecord {
     return this.storage.write(() => {
       const db = this.storage.db;
+      if (this.loadDraft(id).publishedVersion === null)
+        throw new InputError("This record is not published, so there is nothing to withdraw.", 409);
       const linked = db.prepare(`
         SELECT 1 FROM version_destination d JOIN record_state s
           ON s.record_id = d.record_id AND s.published = d.version
         WHERE d.destination_id = ? LIMIT 1
       `).get(id);
       if (linked) throw new InputError("Update or withdraw the published records that refer to this destination first.", 409);
-      db.prepare("UPDATE record_state SET published = NULL WHERE record_id = ?").run(id);
+      const result = db.prepare("UPDATE record_state SET published = NULL WHERE record_id = ? AND published IS NOT NULL").run(id);
+      if (!result.changes) throw new InputError("This record is not published, so there is nothing to withdraw.", 409);
       return this.loadDraft(id);
     });
   }
