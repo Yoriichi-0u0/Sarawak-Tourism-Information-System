@@ -33,3 +33,28 @@ test("every STIS table has row level security enabled and nothing is created in 
   for (const table of stis) assert.equal(table.relrowsecurity, true, table.relname);
   assert.deepEqual(tables.filter(({ nspname }) => nspname === "public").map(({ relname }) => relname), []);
 });
+
+test("the API role can use STIS tables through RLS, cannot rewrite the migration ledger, and other roles see nothing", async (t) => {
+  const db = await freshDb(t);
+  t.after(() => db.close());
+  await db.exec(`do $$ begin
+    if not exists (select 1 from pg_roles where rolname = 'stis_api') then create role stis_api nologin; end if;
+    if not exists (select 1 from pg_roles where rolname = 'stis_outsider') then create role stis_outsider nologin; end if;
+  end $$;`);
+  await migrate(db);
+  await db.exec("grant usage on schema stis to stis_outsider; grant select on all tables in schema stis to stis_outsider;");
+  await db.transaction(async (tx) => {
+    await tx.exec("set local role stis_api");
+    await tx.query("insert into stis.tourism_record(id, kind) values ('role-check', 'destination')");
+    assert.equal((await tx.query("select id from stis.tourism_record where id = 'role-check'")).length, 1);
+    assert.ok((await tx.query("select version from stis.schema_migration")).length >= 2, "the API can read the ledger");
+  });
+  await assert.rejects(db.transaction(async (tx) => {
+    await tx.exec("set local role stis_api");
+    await tx.query("delete from stis.schema_migration");
+  }), /permission denied/);
+  await db.transaction(async (tx) => {
+    await tx.exec("set local role stis_outsider");
+    assert.deepEqual(await tx.query("select id from stis.tourism_record"), [], "RLS hides every row from roles without a policy");
+  });
+});
