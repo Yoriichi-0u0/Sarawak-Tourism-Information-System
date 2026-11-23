@@ -6,8 +6,9 @@ import { categories, editableFields, fieldLabels, isRecordKind } from "./contrac
 import type { Fields, RecordKind, StaffRecord } from "./contracts";
 import { needsDestinations, optionsFor, updateFields } from "./fieldPresentation";
 import { compareDraft, isStale, rebaseDraft } from "./recovery";
+import { planRestore, retainDraft } from "./sessionRecovery";
+import type { Editor, Retained } from "./sessionRecovery";
 
-type Editor = { id?: string; kind: RecordKind; version?: number; fields: Fields };
 type Conflict = { base: StaffRecord; latest: StaffRecord };
 
 const empty = (kind: RecordKind = "event"): Editor => ({ kind, fields: {} });
@@ -26,9 +27,17 @@ export function Staff() {
   const [notice, setNotice] = useState("");
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
   const [conflict, setConflict] = useState<Conflict>();
+  const [expired, setExpired] = useState(false);
+  const [retained, setRetained] = useState<Retained>();
   const conflictNotice = useRef<HTMLDivElement>(null);
+  const expiryNotice = useRef<HTMLDivElement>(null);
+  const restoreNotice = useRef<HTMLDivElement>(null);
+  const current = useRef({ editor, dirty, records });
+  current.current = { editor, dirty, records };
 
   useEffect(() => { if (conflict) conflictNotice.current?.focus(); }, [conflict]);
+  useEffect(() => { if (expired && active === false) expiryNotice.current?.focus(); }, [expired, active]);
+  useEffect(() => { if (active && retained) restoreNotice.current?.focus(); }, [active, retained]);
 
   useEffect(() => {
     let live = true;
@@ -53,13 +62,23 @@ export function Staff() {
       setError(errorMessage(cause));
       if (cause instanceof RequestError) {
         setIssues(cause.issues ?? {});
-        if (cause.status === 401 && active) {
-          setActive(false);
-          setRecords([]);
-          setEditor(undefined);
-        }
+        if (cause.status === 401 && active) expire();
       }
     } finally { setBusy(false); }
+  }
+
+  function expire() {
+    const { editor: open, dirty: unsaved, records: known } = current.current;
+    setRetained((previous) => retainDraft(open, unsaved, known) ?? previous);
+    setExpired(true);
+    setActive(false);
+    setRecords([]);
+    setEditor(undefined);
+    setDirty(false);
+    setConflict(undefined);
+    setConfirmWithdraw(false);
+    setIssues({});
+    setError("");
   }
 
   function open(record?: Editor) {
@@ -73,7 +92,7 @@ export function Staff() {
   }
 
   function keepUnsaved() {
-    return !dirty || window.confirm("Discard your unsaved changes to this draft?");
+    return (!dirty && !retained) || window.confirm("Discard your unsaved changes to this draft?");
   }
 
   function select(record?: Editor) {
@@ -127,7 +146,33 @@ export function Staff() {
       await api("staff/session", { method: "POST", body: { password } });
       setRecords(await api<StaffRecord[]>("staff/records"));
       setActive(true);
+      setExpired(false);
     }, "Signed in.");
+  }
+
+  function restore(saved: Retained) {
+    void run(async () => {
+      const latestRecords = await api<StaffRecord[]>("staff/records");
+      setRecords(latestRecords);
+      const plan = planRestore(saved, latestRecords);
+      setRetained(undefined);
+      if (plan.action === "unavailable")
+        throw new Error("Your unsaved changes could not be matched to a current draft, so they were discarded.");
+      setEditor(plan.editor);
+      setDirty(true);
+      setConfirmWithdraw(false);
+      if (plan.action === "conflict") {
+        setConflict(plan.conflict);
+        return false;
+      }
+      setConflict(undefined);
+    }, "Your unsaved changes are back in the editor. Review them, then save.");
+  }
+
+  function discardRetained() {
+    setRetained(undefined);
+    setError("");
+    setNotice("Your unsaved changes were discarded.");
   }
 
   const shown = records.filter((item) => (!category || item.kind === category) &&
@@ -141,19 +186,32 @@ export function Staff() {
         if (!keepUnsaved()) return;
         void run(async () => {
           await api("staff/session", { method: "DELETE" });
-          setActive(false); setRecords([]); open();
+          setActive(false); setRecords([]); setRetained(undefined); setExpired(false); open();
         }, "Signed out.");
       }}>Sign out</button>}
     </div>
     {error && <p className="as03-error" role="alert">{error}</p>}
     {notice && <p className="as03-success" role="status">{notice}</p>}
     {active === undefined && <p role="status">Checking staff session…</p>}
+    {active === false && expired && <div className="as03-stale" role="alert" tabIndex={-1} ref={expiryNotice} aria-labelledby="as03-expired-title">
+      <h2 id="as03-expired-title">Your staff session has ended</h2>
+      <p>Staff records are hidden until you sign in again.</p>
+      {retained && <p>Your unsaved changes to one draft are kept in this browser tab only. They are not saved, and closing or reloading the page loses them.</p>}
+    </div>}
     {active === false && <form className="as03-panel as03-signin" onSubmit={login}>
       <h2>Staff sign-in</h2><p>Sign in to save drafts and publish updates.</p>
       <label>Staff password<input type="password" name="password" autoComplete="current-password" required maxLength={200} /></label>
       <button className="as03-button" disabled={busy}><LockKeyhole size={17} /> Sign in</button>
     </form>}
-    {active && <div className="as03-staff-layout">
+    {active && retained && <div className="as03-stale" role="alert" tabIndex={-1} ref={restoreNotice} aria-labelledby="as03-restore-title">
+      <h2 id="as03-restore-title">Restore your unsaved changes?</h2>
+      <p>You had unsaved changes when your session ended. Restoring loads the latest saved draft first and shows any differences. Nothing is saved or published until you choose to.</p>
+      <div className="as03-row">
+        <button className="as03-button" disabled={busy} onClick={() => restore(retained)}>Restore my changes</button>
+        <button className="as03-outline" disabled={busy} onClick={discardRetained}>Discard them</button>
+      </div>
+    </div>}
+    {active && !retained && <div className="as03-staff-layout">
       <section className="as03-panel" aria-label="Staff records">
         <div className="as03-row"><h2>Records</h2><button className="as03-outline" onClick={() => select(empty(isRecordKind(category) ? category : "event"))}><Plus size={16} /> New draft</button></div>
         <label className="as03-field">Filter category<select value={category} onChange={(event) => setCategory(event.target.value)}>
