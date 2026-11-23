@@ -6,6 +6,7 @@ import { safeProvider } from "../domain";
 import { api, errorMessage } from "./client";
 import { destinationInterests } from "./contracts";
 import type { TourismItem } from "./contracts";
+import { displayValue } from "./fieldPresentation";
 
 const photos = new Set(["bako", "culture", "wildlife", "cave", "museum", "waterfront", "kolo"]);
 
@@ -83,7 +84,7 @@ export function Catalogue({ mode, select }: {
         return <article className="as03-card" key={item.id}>
           {image && photos.has(image) ? <img src={`/images/${image}.webp`} alt="" loading="lazy" /> : <div className="as03-card-banner"><CalendarDays size={38} /></div>}
           <div className="as03-card-text">
-            <p className="as03-tag">{interest || status}</p>
+            <p className="as03-tag">{interest || (status && displayValue("status", status))}</p>
             <h2>{title}</h2>
             <p className="as03-meta"><MapPin size={16} /> {location || venue}</p>
             {startsAt && <p className="as03-meta">{startsAt.replace("T", " · ")} MYT</p>}
@@ -105,7 +106,7 @@ export function Catalogue({ mode, select }: {
           Location: detail.fields.location || detail.fields.venue,
           Interest: detail.fields.interest,
           Activities: detail.fields.activities,
-          Status: detail.fields.status,
+          Status: detail.fields.status && displayValue("status", detail.fields.status),
           Starts: detail.fields.startsAt?.replace("T", " · "),
         }).filter(([, value]) => Boolean(value)).map(([key, value]) => <div key={key}><dt>{key}</dt><dd>{value}</dd></div>)}
       </dl>

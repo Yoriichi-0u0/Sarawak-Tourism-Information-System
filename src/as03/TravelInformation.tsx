@@ -4,6 +4,7 @@ import { safeProvider } from "../domain";
 import { api, errorMessage } from "./client";
 import { categories, fieldLabels, isRecordKind } from "./contracts";
 import type { TourismItem } from "./contracts";
+import { displayValue } from "./fieldPresentation";
 
 const topics = ["accommodation", "transportation", "dining", "visitor"] as const;
 const hiddenFields = new Set(["title", "summary", "destinationIds", "provider"]);
@@ -40,7 +41,7 @@ export function TravelInformation() {
         <h3>{fields.title}</h3>
         {fields.summary && <p>{fields.summary}</p>}
         <dl className="as03-description">{Object.entries(fields).filter(([key, value]) => value && !hiddenFields.has(key)).map(([key, value]) =>
-          <div key={key}><dt>{fieldLabels[key]}</dt><dd>{value}</dd></div>)}</dl>
+          <div key={key}><dt>{fieldLabels[key] ?? key}</dt><dd>{displayValue(key, value)}</dd></div>)}</dl>
         {provider && <a href={provider} target="_blank" rel="noopener noreferrer">External provider</a>}
       </article>;
     })}

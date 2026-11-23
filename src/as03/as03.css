@@ -106,3 +106,6 @@
 .as03-event-start svg { flex: none; }
 .as03-date-warning { display: flex; align-items: flex-start; gap: 6px; font-weight: 600; color: #6a4a07; background: #fff8e6; border: 1px solid #d9b45f; border-left-width: 5px; border-radius: 8px; padding: 8px 12px; margin: 0 0 10px; }
 .as03-date-warning svg { flex: none; margin-top: 3px; }
+.as03-field-hint { display: block; color: #52665d; margin-top: 4px; }
+.as03-coverage-note { background: var(--soft); border-radius: 8px; padding: 10px 12px; font-size: 14px; }
+.as03-coverage-note p { margin: 4px 0 0; color: #345047; }

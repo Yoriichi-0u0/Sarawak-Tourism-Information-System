@@ -4,6 +4,7 @@ import { LockKeyhole, Plus, Save, Upload } from "lucide-react";
 import { api, errorMessage, RequestError } from "./client";
 import { categories, editableFields, fieldLabels, isRecordKind } from "./contracts";
 import type { Fields, RecordKind, StaffRecord } from "./contracts";
+import { needsDestinations, optionsFor, updateFields } from "./fieldPresentation";
 import { compareDraft, isStale, rebaseDraft } from "./recovery";
 
 type Editor = { id?: string; kind: RecordKind; version?: number; fields: Fields };
@@ -80,7 +81,7 @@ export function Staff() {
   }
 
   function update(field: string, value: string) {
-    setEditor((current) => current ? { ...current, fields: { ...current.fields, [field]: value } } : current);
+    setEditor((current) => current ? { ...current, fields: updateFields(current.kind, current.fields, field, value) } : current);
     setDirty(true);
   }
 
@@ -213,20 +214,30 @@ export function Staff() {
             const value = editor.fields[field] ?? "";
             const invalid = Boolean(issues[field]);
             const errorId = invalid ? `as03-issue-${field}` : undefined;
+            const choices = optionsFor(field);
+            if (field === "destinationIds" && !needsDestinations(editor.kind, editor.fields))
+              return <div className="as03-field as03-coverage-note" key={field} role="note" aria-label={fieldLabels[field]}>
+                <strong>{fieldLabels[field]}</strong>
+                <p>{editor.fields.area === "sarawak"
+                  ? "Not needed. This guidance applies across Sarawak, so it is not linked to specific destinations."
+                  : "Choose a coverage first. Destination-specific guidance needs at least one destination."}</p>
+              </div>;
+            const hintId = field === "destinationIds" && editor.kind === "visitor" ? "as03-hint-destinationIds" : undefined;
+            const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
             return <div className={`as03-field ${field === "summary" ? "as03-full-field" : ""}`} key={field}><label>
               {fieldLabels[field]}
               {field === "destinationIds" ?
-                <select aria-invalid={invalid} aria-describedby={errorId} multiple value={value.split(",").filter(Boolean)} onChange={(event) =>
+                <select aria-invalid={invalid} aria-describedby={describedBy} multiple value={value.split(",").filter(Boolean)} onChange={(event) =>
                   update(field, Array.from(event.target.selectedOptions, (option) => option.value).join(","))}>
                   {records.filter(({ kind }) => kind === "destination").map((destination) =>
                     <option value={destination.id} key={destination.id}>{destination.fields.title || "Untitled destination"}</option>)}
-                </select> : field === "status" || field === "area" ? <select aria-invalid={invalid} aria-describedby={errorId} value={value} onChange={(event) => update(field, event.target.value)}>
+                </select> : choices ? <select aria-invalid={invalid} aria-describedby={errorId} value={value} onChange={(event) => update(field, event.target.value)}>
                   <option value="">Choose an option</option>
-                  {(field === "status" ? ["scheduled", "postponed", "cancelled"] : ["sarawak", "destination"]).map((option) =>
-                    <option value={option} key={option}>{option === "sarawak" ? "Across Sarawak" : option === "destination" ? "Destination-specific" : option[0].toUpperCase() + option.slice(1)}</option>)}
+                  {choices.map(([option, label]) => <option value={option} key={option}>{label}</option>)}
                 </select> : field === "summary" ? <textarea rows={4} aria-invalid={invalid} aria-describedby={errorId} maxLength={2000} value={value} onChange={(event) => update(field, event.target.value)} />
                 : <input type={field === "startsAt" ? "datetime-local" : "text"} maxLength={2000} aria-invalid={invalid} aria-describedby={errorId} value={value} onChange={(event) => update(field, event.target.value)} />}
-              </label>{issues[field] && <small id={errorId} className="as03-field-error">{issues[field]}</small>}
+              </label>{hintId && <small id={hintId} className="as03-field-hint">Choose at least one destination before publishing.</small>}
+              {issues[field] && <small id={errorId} className="as03-field-error">{issues[field]}</small>}
             </div>;
           })}
         </div>
