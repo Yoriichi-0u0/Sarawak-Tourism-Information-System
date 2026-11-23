@@ -2,7 +2,7 @@ import { randomUUID } from "node:crypto";
 
 import { safeProvider } from "../../src/domain.ts";
 import { editableFields, fieldLabels } from "../../src/as03/contracts.ts";
-import type { Entry, Fields, Notice, Plan, PlanSettings, RecordKind, TourismItem } from "../../src/as03/contracts.ts";
+import type { DateNotice, Entry, Fields, Notice, Plan, PlanSettings, RecordKind, TourismItem } from "../../src/as03/contracts.ts";
 
 export class InputError extends Error {
   constructor(message: string, readonly status = 400, readonly issues?: Fields) {
@@ -20,6 +20,11 @@ export function validDate(value: unknown): value is string {
   if (typeof value !== "string" || !/^\d{4}-\d{2}-\d{2}$/.test(value)) return false;
   const date = new Date(`${value}T00:00Z`);
   return !Number.isNaN(date.getTime()) && date.toISOString().slice(0, 10) === value;
+}
+
+export function validStart(value: unknown): value is string {
+  return typeof value === "string" && /^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d$/.test(value) &&
+    validDate(value.slice(0, 10));
 }
 
 export function planSettings(value: unknown): PlanSettings {
@@ -85,9 +90,7 @@ class Event extends TourismRecord {
     const { status, startsAt } = this.fields;
     if (!["scheduled", "postponed", "cancelled"].includes(status))
       issues.status = "Choose a valid event status.";
-    if ((status === "scheduled" || startsAt) &&
-        (!/^\d{4}-\d{2}-\d{2}T(?:[01]\d|2[0-3]):[0-5]\d$/.test(startsAt) ||
-          !validDate(startsAt.slice(0, 10))))
+    if ((status === "scheduled" || startsAt) && !validStart(startsAt))
       issues.startsAt = "Enter a valid Kuching date and time.";
     return issues;
   }
@@ -142,6 +145,18 @@ export class ItineraryEntry {
     if (!record) return "unavailable";
     const status = record.fields.status;
     if (this.value.kind === "event" && (status === "cancelled" || status === "postponed")) return status;
+  }
+
+  publishedStart(record: TourismItem | undefined): string | undefined {
+    const startsAt = record?.fields.startsAt;
+    if (this.value.kind === "event" && validStart(startsAt)) return startsAt;
+  }
+
+  assessEventDate(record: TourismItem | undefined, travelDate: string): DateNotice | undefined {
+    const startsAt = this.publishedStart(record);
+    const status = record?.fields.status;
+    if (startsAt && (status === "scheduled" || status === "postponed") && startsAt.slice(0, 10) !== travelDate)
+      return "different-date";
   }
 }
 

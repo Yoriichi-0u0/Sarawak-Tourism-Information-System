@@ -1,9 +1,10 @@
 import { useEffect, useRef, useState, type FormEvent } from "react";
-import { ArrowDown, ArrowUp, CalendarDays, ChevronRight, Copy, MapPin, RefreshCw, TriangleAlert } from "lucide-react";
+import { ArrowDown, ArrowUp, CalendarClock, CalendarDays, CalendarX, ChevronRight, Copy, MapPin, RefreshCw, TriangleAlert } from "lucide-react";
 
 import { api, errorMessage } from "./client";
 import { conflictDetails } from "./conflicts";
 import type { ReviewedPlan, TourismItem } from "./contracts";
+import { formatDate, formatStart } from "./eventDates";
 import { describePlanChanges, isStale } from "./recovery";
 
 export type GuestLink = { id: string; guest: string };
@@ -199,15 +200,23 @@ export function Planner({ selection, clearSelection, browse }: {
       <ol className="as03-entries">
         {plan.entries.map((entry, index) => {
           const clashes = partners.get(entry.id);
+          const published = entry.eventStartsAt ? formatStart(entry.eventStartsAt) : undefined;
+          const differs = entry.dateNotice === "different-date" && entry.eventStartsAt ? formatDate(entry.eventStartsAt.slice(0, 10)) : undefined;
+          const described = [clashes && `as03-conflict-${entry.id}`, differs && `as03-date-${entry.id}`].filter(Boolean).join(" ");
           return <li key={entry.id} className={clashes ? "as03-panel as03-conflict" : "as03-panel"} aria-label={entry.title}
-            aria-describedby={clashes ? `as03-conflict-${entry.id}` : undefined}>
-          <p className="as03-meta">{entry.start ? `${entry.start}–${entry.end} MYT` : "Time undecided"}</p>
+            aria-describedby={described || undefined}>
+          <p className="as03-meta">Your planned time: {entry.start ? `${entry.start}–${entry.end} MYT` : "not set"}</p>
           {clashes && <p className="as03-conflict-note" id={`as03-conflict-${entry.id}`}>
             <TriangleAlert size={16} aria-hidden="true" /> Time conflict: overlaps {clashes.map(({ title, interval }) => `${title} (${interval})`).join("; ")}
           </p>}
           <h3>{entry.title}</h3>
           {entry.location && <p className="as03-meta"><MapPin size={16} aria-hidden="true" /> {entry.location}</p>}
-          {entry.notice && <p className="as03-status">{entry.notice === "unavailable" ? "Current information unavailable" : `Event ${entry.notice}`}</p>}
+          {published && <p className="as03-meta as03-event-start"><CalendarClock size={16} aria-hidden="true" /> Published event start: {published}</p>}
+          {entry.notice && <p className="as03-status">{entry.notice === "unavailable" ? "Current information unavailable" : `Event ${entry.notice}`}
+            {entry.notice === "postponed" && !published && ". A new start date has not been published."}</p>}
+          {differs && <p className="as03-date-warning" id={`as03-date-${entry.id}`}>
+            <CalendarX size={16} aria-hidden="true" /> Event date differs from your itinerary: {differs}. Your travel date is {formatDate(plan.date) ?? plan.date}.
+          </p>}
           {editing === entry.id ? <form className="as03-dateform" onSubmit={(event) => {
             event.preventDefault();
             const data = new FormData(event.currentTarget);

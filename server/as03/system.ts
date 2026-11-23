@@ -188,9 +188,12 @@ export class ItineraryCoordinator {
         recordCache.set(entry.recordId, this.catalog.getPublishedRecord(entry.recordId));
       const record = recordCache.get(entry.recordId);
       const location = entry.kind === "event" ? record?.fields.venue : record?.fields.location;
+      const assessed = new ItineraryEntry(entry);
       return { ...entry, title: record?.fields.title ?? (entry.kind === "event" ? "Unavailable event" : "Unavailable destination"),
         location: location || undefined,
-        notice: new ItineraryEntry(entry).assessEvent(record) };
+        notice: assessed.assessEvent(record),
+        eventStartsAt: assessed.publishedStart(record),
+        dateNotice: assessed.assessEventDate(record, plan.date) };
     });
     return { ...plan, entries, conflicts: new Itinerary(plan).detectConflicts() };
   }

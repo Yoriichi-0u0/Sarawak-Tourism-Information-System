@@ -6,7 +6,7 @@ import { test } from "node:test";
 
 import { destinationInterests } from "../../src/as03/contracts.ts";
 import type { RecordKind, TourismItem } from "../../src/as03/contracts.ts";
-import { InputError } from "./domain.ts";
+import { InputError, ItineraryEntry } from "./domain.ts";
 import { Application } from "./system.ts";
 
 const password = "synthetic-staff-credential";
@@ -368,4 +368,172 @@ test("changing a saved draft's category reports a category error (audit defect D
   const draft = app.manager.saveDraft(staff, null, "dining", { title: "Synthetic cafe" }, null);
   assert.throws(() => app.manager.saveDraft(staff, draft.id, "event", { title: "Synthetic cafe" }, draft.version),
     isInputError(422, /category/));
+});
+
+function eventPlan(app: Application, travelDate: string) {
+  let { plan, guest } = app.coordinator.createItinerary({ date: travelDate, provisional: false });
+  plan = app.coordinator.updateItinerary(plan.id, guest, plan.revision, { action: "add", recordId: "bako", start: "08:00", end: "09:00" });
+  plan = app.coordinator.updateItinerary(plan.id, guest, plan.revision, { action: "add", recordId: "sample-event", start: "10:00", end: "11:00" });
+  return { plan, guest };
+}
+
+function republish(app: Application, fields: Record<string, string>) {
+  const staff = app.access.login(password);
+  const draft = app.manager.getDraft(staff, "sample-event");
+  const revised = app.manager.saveDraft(staff, draft.id, "event", { ...draft.fields, ...fields }, draft.version);
+  app.manager.publish(staff, revised.id, revised.version);
+  return staff;
+}
+
+const eventEntry = (plan: { entries: { kind: string }[] }) => plan.entries.find(({ kind }) => kind === "event") as Record<string, unknown>;
+const planned = (plan: { entries: { id: string; start: string; end: string }[] }) => plan.entries.map(({ id, start, end }) => ({ id, start, end }));
+
+test("a scheduled event on the travel date shows its published start without a date warning", (t) => {
+  const app = new Application(":memory:", password);
+  t.after(() => app.close());
+  const { plan } = eventPlan(app, "2026-11-27");
+  const event = eventEntry(plan);
+  assert.equal(event.eventStartsAt, "2026-11-27T10:00");
+  assert.equal(event.dateNotice, undefined);
+  assert.equal(event.notice, undefined);
+  const destination = plan.entries.find(({ kind }) => kind === "destination")!;
+  assert.equal("eventStartsAt" in destination && destination.eventStartsAt !== undefined, false);
+  assert.equal(destination.dateNotice, undefined);
+});
+
+test("a scheduled event on another date is flagged without changing the planned interval", (t) => {
+  const app = new Application(":memory:", password);
+  t.after(() => app.close());
+  const { plan } = eventPlan(app, "2026-11-30");
+  const event = eventEntry(plan);
+  assert.equal(event.eventStartsAt, "2026-11-27T10:00");
+  assert.equal(event.dateNotice, "different-date");
+  assert.equal(event.notice, undefined);
+  assert.deepEqual([event.start, event.end], ["10:00", "11:00"]);
+});
+
+test("a postponed event keeps its notice and shows the revised date", (t) => {
+  const app = new Application(":memory:", password);
+  t.after(() => app.close());
+  const { plan, guest } = eventPlan(app, "2026-11-27");
+  const before = planned(plan);
+  republish(app, { status: "postponed", startsAt: "2026-12-05T10:00" });
+  const reviewed = app.coordinator.reviewItinerary(plan.id, guest);
+  const event = eventEntry(reviewed);
+  assert.equal(event.notice, "postponed");
+  assert.equal(event.eventStartsAt, "2026-12-05T10:00");
+  assert.equal(event.dateNotice, "different-date");
+  assert.deepEqual(planned(reviewed), before);
+  assert.equal(reviewed.revision, plan.revision);
+});
+
+test("a postponed event without a published start keeps its notice and invents no date", (t) => {
+  const app = new Application(":memory:", password);
+  t.after(() => app.close());
+  const { plan, guest } = eventPlan(app, "2026-11-30");
+  republish(app, { status: "postponed", startsAt: "" });
+  const event = eventEntry(app.coordinator.reviewItinerary(plan.id, guest));
+  assert.equal(event.notice, "postponed");
+  assert.equal(event.eventStartsAt, undefined);
+  assert.equal(event.dateNotice, undefined);
+});
+
+test("a cancelled event keeps its cancellation notice and gets no date warning", (t) => {
+  const app = new Application(":memory:", password);
+  t.after(() => app.close());
+  const { plan, guest } = eventPlan(app, "2026-11-30");
+  republish(app, { status: "cancelled" });
+  const event = eventEntry(app.coordinator.reviewItinerary(plan.id, guest));
+  assert.equal(event.notice, "cancelled");
+  assert.equal(event.eventStartsAt, "2026-11-27T10:00");
+  assert.equal(event.dateNotice, undefined);
+});
+
+test("a withdrawn event is unavailable and shows no published date", (t) => {
+  const app = new Application(":memory:", password);
+  t.after(() => app.close());
+  const { plan, guest } = eventPlan(app, "2026-11-30");
+  const staff = republish(app, { startsAt: "2026-12-05T10:00" });
+  assert.equal(eventEntry(app.coordinator.reviewItinerary(plan.id, guest)).dateNotice, "different-date");
+  app.manager.withdraw(staff, "sample-event");
+  const reviewed = app.coordinator.reviewItinerary(plan.id, guest);
+  const event = eventEntry(reviewed);
+  assert.equal(event.notice, "unavailable");
+  assert.equal(event.title, "Unavailable event");
+  assert.equal(event.eventStartsAt, undefined);
+  assert.equal(event.dateNotice, undefined);
+  assert.deepEqual(planned(reviewed), planned(plan));
+});
+
+test("changing the travel date recalculates the date warning", (t) => {
+  const app = new Application(":memory:", password);
+  t.after(() => app.close());
+  let { plan, guest } = eventPlan(app, "2026-11-30");
+  assert.equal(eventEntry(plan).dateNotice, "different-date");
+  plan = app.coordinator.updateItinerary(plan.id, guest, plan.revision, { action: "date", date: "2026-11-27", provisional: true });
+  assert.equal(eventEntry(plan).dateNotice, undefined);
+  plan = app.coordinator.updateItinerary(plan.id, guest, plan.revision, { action: "date", date: "2026-12-01", provisional: false });
+  assert.equal(eventEntry(plan).dateNotice, "different-date");
+  assert.deepEqual([eventEntry(plan).start, eventEntry(plan).end], ["10:00", "11:00"]);
+});
+
+test("reopening an itinerary uses the current published date, including after restart", (t) => {
+  mkdirSync("test-results", { recursive: true });
+  const directory = mkdtempSync("test-results/as03-event-date-");
+  const filename = join(directory, "fixture.sqlite");
+  let app = new Application(filename, password);
+  t.after(() => { app.close(); rmSync(directory, { recursive: true }); });
+  const { plan, guest } = eventPlan(app, "2026-11-27");
+  assert.equal(eventEntry(plan).dateNotice, undefined);
+  const staff = app.access.login(password);
+  const draft = app.manager.getDraft(staff, "sample-event");
+  const unpublished = app.manager.saveDraft(staff, draft.id, "event", { ...draft.fields, startsAt: "2026-12-05T10:00" }, draft.version);
+  assert.equal(eventEntry(app.coordinator.reviewItinerary(plan.id, guest)).eventStartsAt, "2026-11-27T10:00", "drafts stay private");
+  app.manager.publish(staff, unpublished.id, unpublished.version);
+  assert.equal(eventEntry(app.coordinator.reviewItinerary(plan.id, guest)).eventStartsAt, "2026-12-05T10:00");
+  app.close();
+  app = new Application(filename);
+  const reopened = app.coordinator.reviewItinerary(plan.id, guest);
+  assert.equal(eventEntry(reopened).eventStartsAt, "2026-12-05T10:00");
+  assert.equal(eventEntry(reopened).dateNotice, "different-date");
+  assert.deepEqual(planned(reopened), planned(plan));
+  assert.equal(reopened.revision, plan.revision);
+});
+
+test("itinerary storage keeps no copy of published event dates", (t) => {
+  mkdirSync("test-results", { recursive: true });
+  const directory = mkdtempSync("test-results/as03-event-store-");
+  const filename = join(directory, "fixture.sqlite");
+  const app = new Application(filename, password);
+  t.after(() => { app.close(); rmSync(directory, { recursive: true }); });
+  const { plan, guest } = eventPlan(app, "2026-11-30");
+  republish(app, { status: "postponed", startsAt: "2026-12-05T10:00" });
+  app.coordinator.reviewItinerary(plan.id, guest);
+  const fixture = new DatabaseSync(filename);
+  try {
+    const columns = (fixture.prepare("PRAGMA table_info(itinerary_entry)").all() as { name: string }[]).map(({ name }) => name);
+    assert.deepEqual(columns, ["id", "itinerary_id", "recordId", "kind", "start", "end", "position"]);
+    assert.deepEqual((fixture.prepare("PRAGMA table_info(itinerary)").all() as { name: string }[]).map(({ name }) => name),
+      ["id", "guest_digest", "date", "provisional", "revision"]);
+    const rows = fixture.prepare("SELECT * FROM itinerary_entry WHERE itinerary_id = ?").all(plan.id);
+    assert.equal(rows.length, 2);
+    assert.ok(!JSON.stringify(rows).includes("2026-12-05"));
+    assert.ok(!JSON.stringify(rows).includes("2026-11-27"));
+  } finally { fixture.close(); }
+});
+
+test("an event entry ignores a malformed published start", () => {
+  const entry = new ItineraryEntry({ id: "e", recordId: "x", kind: "event", start: "", end: "" });
+  const record = (startsAt: string, status = "scheduled"): TourismItem =>
+    ({ id: "x", kind: "event", version: 1, fields: { title: "Synthetic", status, startsAt } });
+  for (const startsAt of ["", "2026-02-30T10:00", "2026-12-05", "2026-12-05T24:00", "2026-12-05T10:00Z"]) {
+    assert.equal(entry.publishedStart(record(startsAt)), undefined, startsAt);
+    assert.equal(entry.assessEventDate(record(startsAt), "2026-11-27"), undefined, startsAt);
+  }
+  assert.equal(entry.publishedStart(record("2026-12-05T23:30")), "2026-12-05T23:30");
+  assert.equal(entry.assessEventDate(record("2026-11-27T23:30"), "2026-11-27"), undefined);
+  assert.equal(entry.assessEventDate(record("2026-11-28T00:00"), "2026-11-27"), "different-date");
+  assert.equal(entry.publishedStart(undefined), undefined);
+  const destination = new ItineraryEntry({ id: "d", recordId: "y", kind: "destination", start: "", end: "" });
+  assert.equal(destination.publishedStart(record("2026-12-05T10:00")), undefined);
 });
