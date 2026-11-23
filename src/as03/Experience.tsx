@@ -39,7 +39,7 @@ export default function Experience() {
     <header className="as03-header">
       <div className="as03-shell as03-topbar">
         <button className="as03-brand" onClick={() => navigate("destinations")}>
-          <img src="/icons/hornbill-256.png" width={42} height={42} alt="" />
+          <img src="/icons/sarawak-icon-v2-256.png" width={42} height={42} alt="" />
           <span>sarawak.</span>
         </button>
         <nav aria-label="Main navigation">{sections.map(({ key, name, icon: Icon }) =>

@@ -9,12 +9,12 @@
   "theme_color": "#154c3b",
   "icons": [
     {
-      "src": "/icons/hornbill-256.png",
+      "src": "/icons/sarawak-icon-v2-256.png",
       "sizes": "256x256",
       "type": "image/png"
     },
     {
-      "src": "/icons/hornbill-512.png",
+      "src": "/icons/sarawak-icon-v2-512.png",
       "sizes": "512x512",
       "type": "image/png"
     }

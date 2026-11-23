@@ -139,7 +139,7 @@ function initialPage(): Page {
 }
 function BrandMark() {
   return (
-    <img src="/icons/hornbill-256.png" alt="" width="32" height="32" />
+    <img src="/icons/sarawak-icon-v2-256.png" alt="" width="32" height="32" />
   );
 }
 function photo(image: string) {
