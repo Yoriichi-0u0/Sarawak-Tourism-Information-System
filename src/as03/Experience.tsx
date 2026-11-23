@@ -21,8 +21,10 @@ const themeIcons = { auto: Monitor, light: Sun, dark: Moon };
 
 function ThemeSwitch() {
   const [choice, setChoice] = useState<ThemeChoice>(() => readTheme(browserStorage()));
+  const [keyboard, setKeyboard] = useState(false);
   useLayoutEffect(() => { applyTheme(choice, document.documentElement); }, [choice]);
-  return <fieldset className="as03-theme">
+  return <fieldset className="as03-theme" data-keyboard={keyboard || undefined}
+    onKeyDown={() => setKeyboard(true)} onPointerDown={() => setKeyboard(false)}>
     <legend className="sr-only">Colour theme</legend>
     {themeChoices.map(([value, label]) => {
       const Icon = themeIcons[value];
@@ -51,10 +53,7 @@ export default function Experience() {
   }
 
   return <div className="as03">
-    <a className="skip-link" href="#as03-main" onClick={(event) => {
-      event.preventDefault();
-      document.getElementById("as03-main")?.focus();
-    }}>Skip to content</a>
+    <button type="button" className="skip-link" onClick={() => document.getElementById("as03-main")?.focus()}>Skip to content</button>
     <header className="as03-header">
       <div className="as03-shell as03-topbar">
         <button className="as03-brand" onClick={() => navigate("destinations")}>

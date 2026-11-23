@@ -44,7 +44,7 @@
 .as03 .as03-theme label { position: relative; display: inline-flex; align-items: center; gap: 5px; padding: 5px 10px; border-radius: 999px; font-size: 13px; font-weight: 600; cursor: pointer; }
 .as03-theme input { position: absolute; inset: 0; opacity: 0; margin: 0; cursor: pointer; }
 .as03-theme label:has(input:checked) { background: var(--ink); color: var(--canvas); }
-.as03-theme label:has(input:focus-visible) { outline: 3px solid var(--focus); outline-offset: 2px; }
+.as03-theme label:has(input:focus-visible), .as03-theme[data-keyboard] label:has(input:focus) { outline: 3px solid var(--focus); outline-offset: 2px; }
 .as03-main { padding-top: 30px; padding-bottom: 64px; flex: 1; }
 .as03-row { flex-wrap: wrap; }
 .as03-row h2, .as03-row h3, .as03-row p { margin: 0; }

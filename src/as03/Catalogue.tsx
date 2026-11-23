@@ -1,14 +1,13 @@
 import { useCallback, useEffect, useId, useState, type FormEvent } from "react";
-import { ArrowUpRight, CalendarDays, MapPin, Plus, Search } from "lucide-react";
+import { ArrowUpRight, MapPin, Plus, Search } from "lucide-react";
 
 import Modal from "../components/Modal";
 import { safeProvider } from "../domain";
+import { CardMedia } from "./cardMedia";
 import { api, errorMessage } from "./client";
 import { destinationInterests } from "./contracts";
 import type { TourismItem } from "./contracts";
 import { displayValue } from "./fieldPresentation";
-
-const photos = new Set(["bako", "culture", "wildlife", "cave", "museum", "waterfront", "kolo"]);
 
 export function Catalogue({ mode, select }: {
   mode: "destinations" | "events";
@@ -82,7 +81,7 @@ export function Catalogue({ mode, select }: {
       {items?.map((item) => {
         const { title, interest, image, location, venue, startsAt, status, summary } = item.fields;
         return <article className="as03-card" key={item.id}>
-          {image && photos.has(image) ? <img src={`/images/${image}.webp`} alt="" loading="lazy" /> : <div className="as03-card-banner"><CalendarDays size={38} /></div>}
+          <CardMedia mode={mode} image={image} />
           <div className="as03-card-text">
             <p className="as03-tag">{interest || (status && displayValue("status", status))}</p>
             <h2>{title}</h2>
