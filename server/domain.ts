@@ -34,11 +34,33 @@ function httpsWithoutCredentials(value: string) {
   return !url.username && !url.password;
 }
 
-export function planSettings(value: unknown): PlanSettings {
-  const { date, provisional } = object(value);
+export const maxTripDays = 14;
+
+export function addDays(date: string, days: number): string {
+  const next = new Date(`${date}T00:00Z`);
+  next.setUTCDate(next.getUTCDate() + days);
+  return next.toISOString().slice(0, 10);
+}
+
+export function daysBetween(start: string, end: string): number {
+  return Math.round((Date.parse(`${end}T00:00Z`) - Date.parse(`${start}T00:00Z`)) / 86_400_000);
+}
+
+/** Travel dates: a start date, an optional end date (single day by default, at most 14 days) and whether they are provisional. */
+export function planSettings(value: unknown, keepLength?: number): PlanSettings {
+  const { date, endDate, provisional } = object(value);
   if (!validDate(date)) throw new InputError("Enter a valid date.");
+  const end = endDate === undefined || endDate === "" ? addDays(date, keepLength ?? 0) : endDate;
+  if (!validDate(end) || end < date) throw new InputError("Enter an end date on or after the start date.");
+  if (daysBetween(date, end) >= maxTripDays) throw new InputError(`Plan up to ${maxTripDays} days in one itinerary.`);
   if (typeof provisional !== "boolean") throw new InputError("Choose a date status.");
-  return { date, provisional };
+  return { date, endDate: end, provisional };
+}
+
+function readNote(value: unknown): string {
+  if (value === undefined) return "";
+  if (typeof value !== "string" || value.length > 500) throw new InputError("Keep notes to 500 characters.");
+  return value.trim();
 }
 
 function readInterval(start: unknown, end: unknown): [string, string] {
@@ -197,6 +219,7 @@ export class ItineraryEntry {
     if (this.value.kind === "event" && validStart(startsAt)) return startsAt;
   }
 
+  /** Compares the published event date with the day this stop is planned for. */
   assessEventDate(record: TourismItem | undefined, travelDate: string): DateNotice | undefined {
     const startsAt = this.publishedStart(record);
     const status = record?.fields.status;
@@ -208,18 +231,20 @@ export class ItineraryEntry {
 export class Itinerary {
   constructor(readonly value: Plan) {}
 
-  addEntry(record: TourismItem, start: unknown, end: unknown) {
-    if (record.kind !== "event" && record.kind !== "destination")
-      throw new InputError("Choose a destination or event.");
+  addEntry(record: TourismItem, start: unknown, end: unknown, day?: unknown, note?: unknown) {
+    if (record.kind === "visitor") throw new InputError("Choose a destination, event, stay, transport option or place to eat.");
     if (this.value.entries.length >= 50) throw new InputError("This itinerary has 50 entries.");
     const interval = readInterval(start, end);
     this.value.entries.push({
-      id: randomUUID(), recordId: record.id, kind: record.kind, start: interval[0], end: interval[1],
+      id: randomUUID(), recordId: record.id, kind: record.kind, day: this.readDay(day), start: interval[0], end: interval[1], note: readNote(note),
     });
   }
 
-  updateEntryTime(id: unknown, start: unknown, end: unknown) {
-    new ItineraryEntry(this.entry(id)).updatePlannedInterval(start, end);
+  updateEntryTime(id: unknown, start: unknown, end: unknown, day?: unknown, note?: unknown) {
+    const entry = this.entry(id);
+    new ItineraryEntry(entry).updatePlannedInterval(start, end);
+    if (day !== undefined) entry.day = this.readDay(day);
+    if (note !== undefined) entry.note = readNote(note);
   }
 
   removeEntry(id: unknown) {
@@ -236,15 +261,29 @@ export class Itinerary {
     this.value.entries.splice(position, 0, entry);
   }
 
+  /** Moving the start date moves every stop with it; shortening the trip is refused while stops fall outside it. */
   updateTravelDate(value: unknown) {
-    Object.assign(this.value, planSettings(value));
+    const settings = planSettings(value, daysBetween(this.value.date, this.value.endDate));
+    const shift = daysBetween(this.value.date, settings.date);
+    const moved = this.value.entries.map((entry) => ({ entry, day: addDays(entry.day, shift) }));
+    if (moved.some(({ day }) => day > settings.endDate))
+      throw new InputError("Some stops fall after the new end date. Move or remove them first.");
+    for (const { entry, day } of moved) entry.day = day;
+    Object.assign(this.value, settings);
   }
 
   detectConflicts(): [string, string][] {
     const timed = this.value.entries.filter((entry) => entry.start);
     return timed.flatMap((a, index) => timed.slice(index + 1)
-      .filter((b) => a.start < b.end && b.start < a.end)
+      .filter((b) => a.day === b.day && a.start < b.end && b.start < a.end)
       .map((b): [string, string] => [a.id, b.id]));
+  }
+
+  private readDay(value: unknown): string {
+    if (value === undefined || value === "") return this.value.date;
+    if (!validDate(value) || value < this.value.date || value > this.value.endDate)
+      throw new InputError("Choose a day within the trip dates.");
+    return value;
   }
 
   private entry(id: unknown) {

@@ -111,11 +111,11 @@ export class ItineraryCoordinator {
       case "add": {
         const record = typeof command.recordId === "string" ? await this.catalog.getPublishedRecord(command.recordId) : undefined;
         if (!record) throw new InputError("This selection is unavailable.", 404);
-        itinerary.addEntry(record, command.start, command.end);
+        itinerary.addEntry(record, command.start, command.end, command.day, command.note);
         break;
       }
       case "update":
-        itinerary.updateEntryTime(command.entryId, command.start, command.end);
+        itinerary.updateEntryTime(command.entryId, command.start, command.end, command.day, command.note);
         break;
       case "remove":
         itinerary.removeEntry(command.entryId);
@@ -156,17 +156,23 @@ export class ItineraryCoordinator {
       if (!records.has(recordId)) records.set(recordId, await this.catalog.getPublishedRecord(recordId));
     const entries = plan.entries.map((entry) => {
       const record = records.get(entry.recordId);
-      const location = entry.kind === "event" ? record?.fields.venue : record?.fields.location;
+      const location = entry.kind === "event" ? record?.fields.venue
+        : entry.kind === "transportation" ? (record ? `${record.fields.from} → ${record.fields.to}` : undefined) : record?.fields.location;
       const assessed = new ItineraryEntry(entry);
-      return { ...entry, title: record?.fields.title ?? (entry.kind === "event" ? "Unavailable event" : "Unavailable destination"),
+      return { ...entry, title: record?.fields.title ?? unavailableTitle[entry.kind],
         location: location || undefined,
         notice: assessed.assessEvent(record),
         eventStartsAt: assessed.publishedStart(record),
-        dateNotice: assessed.assessEventDate(record, plan.date) };
+        dateNotice: assessed.assessEventDate(record, entry.day) };
     });
     return { ...plan, entries, conflicts: new Itinerary(plan).detectConflicts() };
   }
 }
+
+const unavailableTitle: Record<Plan["entries"][number]["kind"], string> = {
+  destination: "Unavailable destination", event: "Unavailable event", accommodation: "Unavailable stay",
+  transportation: "Unavailable transport option", dining: "Unavailable place to eat",
+};
 
 export type ApplicationOptions = {
   db: Db;

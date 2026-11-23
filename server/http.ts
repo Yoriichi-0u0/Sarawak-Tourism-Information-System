@@ -1,5 +1,6 @@
 import { isRecordKind } from "../src/as03/contracts.ts";
 import type { Account } from "../src/as03/contracts.ts";
+import { toCalendar } from "./calendar.ts";
 import { InputError, object } from "./domain.ts";
 import type { Application } from "./services.ts";
 
@@ -34,7 +35,7 @@ export function describeRoute(path: string): { route: string; recordId?: string 
   const record = /^staff\/records\/([\w-]{1,100})(\/publish|\/withdraw|\/history)?$/.exec(path);
   if (record) return { route: `${prefix}staff/records/:id${record[2] ?? ""}`, recordId: record[1] };
   if (/^admin\/staff\/[\w-]{1,100}$/.test(path)) return { route: `${prefix}admin/staff/:id` };
-  const plan = /^itineraries\/[\w-]{1,100}(\/claim)?$/.exec(path);
+  const plan = /^itineraries\/[\w-]{1,100}(\/claim|\/calendar)?$/.exec(path);
   if (plan) return { route: `${prefix}itineraries/:id${plan[1] ?? ""}` };
   return { route: `${prefix}:unmatched` };
 }
@@ -207,17 +208,25 @@ export function createHandler(app: Application, options: HandlerOptions = {}) {
       if (method === "GET" && path === "itineraries") return json(200, await app.coordinator.listItineraries(session));
       if (method === "POST" && path === "itineraries")
         return json(201, await app.coordinator.createItinerary(await readJson(request), session));
-      const itinerary = /^itineraries\/([\w-]{1,100})(\/claim)?$/.exec(path);
+      const itinerary = /^itineraries\/([\w-]{1,100})(\/claim|\/calendar)?$/.exec(path);
       if (itinerary) {
-        const [, id, claim] = itinerary;
+        const [, id, command] = itinerary;
+        const claim = command === "/claim";
         const guest = readGuest(request);
+        if (method === "GET" && command === "/calendar") {
+          const plan = await app.coordinator.reviewItinerary(id, guest, session);
+          return new Response(toCalendar(plan), { status: 200, headers: {
+            "Content-Type": "text/calendar; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+            "Content-Disposition": `attachment; filename="sarawak-trip-${plan.date}.ics"`,
+          } });
+        }
         if (method === "POST" && claim) return json(200, await app.coordinator.claimItinerary(id, guest, session));
-        if (method === "GET" && !claim) return json(200, await app.coordinator.reviewItinerary(id, guest, session));
-        if (method === "PUT" && !claim) {
+        if (method === "GET" && !command) return json(200, await app.coordinator.reviewItinerary(id, guest, session));
+        if (method === "PUT" && !command) {
           const body = await readJson(request);
           return json(200, await app.coordinator.updateItinerary(id, guest, body.revision, body.change, session));
         }
-        if (method === "DELETE" && !claim) {
+        if (method === "DELETE" && !command) {
           await app.coordinator.deleteItinerary(id, guest, session);
           return json(200, { removed: true });
         }

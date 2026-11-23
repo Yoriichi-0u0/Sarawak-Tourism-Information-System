@@ -6,8 +6,8 @@ import { conflictDetails } from "./conflicts.ts";
 
 function plan(entries: [string, string, string, string][], conflicts: [string, string][]): ReviewedPlan {
   return {
-    id: "plan", title: "Trip", owned: false, revision: 1, date: "2026-11-27", provisional: true, conflicts,
-    entries: entries.map(([id, title, start, end]) => ({ id, recordId: id, kind: "destination", title, start, end })),
+    id: "plan", title: "Trip", owned: false, revision: 1, date: "2026-11-27", endDate: "2026-11-27", provisional: true, conflicts,
+    entries: entries.map(([id, title, start, end]) => ({ id, recordId: id, kind: "destination", day: "2026-11-27", note: "", title, start, end })),
   };
 }
 

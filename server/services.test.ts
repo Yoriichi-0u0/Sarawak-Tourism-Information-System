@@ -268,8 +268,8 @@ test("itinerary settings and intervals are validated", async (t) => {
   }
   plan = (await app.coordinator.updateItinerary(plan.id, guest, plan.revision, { action: "add", recordId: "bako", start: "", end: "" }));
   assert.deepEqual([plan.entries[0].start, plan.entries[0].end], ["", ""]);
-  await assert.rejects(async () => (await app.coordinator.updateItinerary(plan.id, guest, plan.revision, { action: "add", recordId: "sample-accommodation", start: "", end: "" })),
-    isInputError(400, /destination or event/));
+  await assert.rejects(async () => (await app.coordinator.updateItinerary(plan.id, guest, plan.revision, { action: "add", recordId: "sample-guidance", start: "", end: "" })),
+    isInputError(400, /destination, event, stay/));
   await assert.rejects(async () => (await app.coordinator.updateItinerary(plan.id, guest, plan.revision, { action: "add", recordId: "missing", start: "", end: "" })),
     isInputError(404));
   await assert.rejects(async () => (await app.coordinator.updateItinerary(plan.id, guest, plan.revision, { action: "rename" })), isInputError(400));
@@ -520,7 +520,7 @@ test("itinerary storage keeps no copy of published event dates", async (t) => {
 });
 
 test("an event entry ignores a malformed published start", async () => {
-  const entry = new ItineraryEntry({ id: "e", recordId: "x", kind: "event", start: "", end: "" });
+  const entry = new ItineraryEntry({ id: "e", recordId: "x", kind: "event", day: "2026-11-27", start: "", end: "", note: "" });
   const record = (startsAt: string, status = "scheduled"): TourismItem =>
     ({ id: "x", kind: "event", version: 1, fields: { title: "Synthetic", status, startsAt } });
   for (const startsAt of ["", "2026-02-30T10:00", "2026-02-30", "2026-12-05T24:00", "2026-12-05T10:00Z"]) {
@@ -533,7 +533,7 @@ test("an event entry ignores a malformed published start", async () => {
   assert.equal(entry.assessEventDate(record("2026-11-27T23:30"), "2026-11-27"), undefined);
   assert.equal(entry.assessEventDate(record("2026-11-28T00:00"), "2026-11-27"), "different-date");
   assert.equal(entry.publishedStart(undefined), undefined);
-  const destination = new ItineraryEntry({ id: "d", recordId: "y", kind: "destination", start: "", end: "" });
+  const destination = new ItineraryEntry({ id: "d", recordId: "y", kind: "destination", day: "2026-11-27", start: "", end: "", note: "" });
   assert.equal(destination.publishedStart(record("2026-12-05T10:00")), undefined);
 });
 
@@ -679,4 +679,56 @@ test("rejected staff operations leave stored records unchanged", async (t) => {
   for (const [operation, status] of rejected) await assert.rejects(operation, isInputError(status), String(operation));
   assert.equal(await snapshot(filename), before);
   assert.equal((await app.catalog.getPublishedEvent("sample-event"))?.version, published.version);
+});
+
+test("multi-day itineraries place stops on days, detect conflicts per day and move stops with the dates", async (t) => {
+  const app = await open(t);
+  let { plan, guest } = await guestPlan(app, { date: "2026-11-27", endDate: "2026-11-29", provisional: false, title: "Long weekend" });
+  assert.deepEqual([plan.date, plan.endDate, plan.title], ["2026-11-27", "2026-11-29", "Long weekend"]);
+  const edit = async (change: Record<string, unknown>) => { plan = await app.coordinator.updateItinerary(plan.id, guest, plan.revision, change); };
+  await edit({ action: "add", recordId: "bako", day: "2026-11-27", start: "09:00", end: "11:00" });
+  await edit({ action: "add", recordId: "museum", day: "2026-11-28", start: "10:00", end: "12:00", note: "  Children's gallery first " });
+  await edit({ action: "add", recordId: "sample-accommodation", day: "2026-11-27", start: "", end: "" });
+  assert.deepEqual(plan.conflicts, [], "overlapping times on different days are not conflicts");
+  await edit({ action: "add", recordId: "culture", day: "2026-11-28", start: "11:00", end: "13:00" });
+  assert.equal(plan.conflicts.length, 1);
+  assert.equal(plan.entries.find(({ recordId }) => recordId === "museum")?.note, "Children's gallery first");
+  assert.equal(plan.entries.find(({ recordId }) => recordId === "sample-accommodation")?.title, "Waterfront Heritage Inn", "stays can be planned (extension)");
+  const culture = plan.entries.find(({ recordId }) => recordId === "culture")!;
+  await edit({ action: "update", entryId: culture.id, day: "2026-11-29", start: "11:00", end: "13:00" });
+  assert.deepEqual(plan.conflicts, []);
+  await assert.rejects(app.coordinator.updateItinerary(plan.id, guest, plan.revision, { action: "add", recordId: "bako", day: "2026-11-30", start: "", end: "" }),
+    isInputError(400, /within the trip dates/));
+  await edit({ action: "date", date: "2026-12-04", provisional: true });
+  assert.deepEqual([plan.date, plan.endDate], ["2026-12-04", "2026-12-06"], "the trip keeps its length");
+  assert.deepEqual(plan.entries.map(({ day }) => day).sort(), ["2026-12-04", "2026-12-04", "2026-12-05", "2026-12-06"]);
+  await assert.rejects(app.coordinator.updateItinerary(plan.id, guest, plan.revision, { action: "date", date: "2026-12-04", endDate: "2026-12-05", provisional: true }),
+    isInputError(400, /after the new end date/));
+  for (const invalid of [{ date: "2026-12-04", endDate: "2026-12-03", provisional: true }, { date: "2026-12-01", endDate: "2026-12-15", provisional: true }])
+    await assert.rejects(guestPlan(app, invalid), isInputError(400), JSON.stringify(invalid));
+  assert.ok(await guestPlan(app, { date: "2026-12-01", endDate: "2026-12-14", provisional: true }), "fourteen days is the maximum");
+});
+
+test("an event is compared with the day it is planned for, not the trip start", async (t) => {
+  const app = await open(t);
+  let { plan, guest } = await guestPlan(app, { date: "2026-11-26", endDate: "2026-11-28", provisional: false });
+  plan = await app.coordinator.updateItinerary(plan.id, guest, plan.revision, { action: "add", recordId: "sample-event", day: "2026-11-27", start: "10:00", end: "11:00" });
+  assert.equal(plan.entries[0].dateNotice, undefined);
+  plan = await app.coordinator.updateItinerary(plan.id, guest, plan.revision, { action: "update", entryId: plan.entries[0].id, day: "2026-11-28", start: "10:00", end: "11:00" });
+  assert.equal(plan.entries[0].dateNotice, "different-date");
+});
+
+test("an itinerary exports as an iCalendar file in Kuching time", async (t) => {
+  const { toCalendar } = await import("./calendar.ts");
+  const app = await open(t);
+  let { plan, guest } = await guestPlan(app, { date: "2026-11-27", endDate: "2026-11-28", provisional: true, title: "Trip, with; commas" });
+  plan = await app.coordinator.updateItinerary(plan.id, guest, plan.revision, { action: "add", recordId: "bako", day: "2026-11-27", start: "09:00", end: "11:30", note: "Bring water\nand a hat" });
+  plan = await app.coordinator.updateItinerary(plan.id, guest, plan.revision, { action: "add", recordId: "museum", day: "2026-11-28", start: "", end: "" });
+  const ics = toCalendar(plan, new Date("2026-11-23T10:00:00Z"));
+  assert.ok(ics.endsWith("END:VCALENDAR\r\n"));
+  assert.ok(ics.split("\r\n").every((line) => line.length <= 75), "lines are folded");
+  for (const line of ["X-WR-CALNAME:Trip\\, with\\; commas", "DTSTART;TZID=Asia/Kuching:20261127T090000", "DTEND;TZID=Asia/Kuching:20261127T113000",
+    "DTSTART;VALUE=DATE:20261128", "DTEND;VALUE=DATE:20261129", "SUMMARY:Bako National Park", "DTSTAMP:20261123T100000Z"])
+    assert.ok(ics.includes(line), line);
+  assert.ok(ics.includes("Bring water\\nand a hat") && ics.includes("Travel dates are provisional."));
 });

@@ -361,3 +361,15 @@ test("discovery routes expose filters, related records, journeys and places", as
   assert.equal((await call({ path: "/api/v1/catalog/destination/missing/related" })).status, 404);
   assert.deepEqual(logs.map(({ route, status }) => `${status} ${route}`), ["400 /api/v1/journeys", "404 /api/v1/catalog/destination/:id/related"]);
 });
+
+test("the calendar export needs the same access as the itinerary", async (t) => {
+  const { call, post } = await serve(t);
+  const { plan, guest } = (await post("/api/v1/itineraries", { date: "2026-11-27", provisional: false })).body;
+  const path = `/api/v1/itineraries/${plan.id}/calendar`;
+  assert.equal((await call({ path })).status, 404);
+  const reply = await call({ path, headers: { authorization: `Guest ${guest}` } });
+  assert.equal(reply.status, 200);
+  assert.equal(reply.headers.get("content-type"), "text/calendar; charset=utf-8");
+  assert.equal(reply.headers.get("content-disposition"), 'attachment; filename="sarawak-trip-2026-11-27.ics"');
+  assert.match(reply.text, /^BEGIN:VCALENDAR\r\n/);
+});

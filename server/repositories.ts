@@ -137,7 +137,7 @@ export type PlanAccess = { accountId?: string; guest?: string };
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const unavailablePlan = () => new InputError("This itinerary access link is invalid or the itinerary was removed.", 404);
-type PlanRow = { id: string; title: string; date: string; provisional: boolean; revision: number; owner_id: string | null };
+type PlanRow = { id: string; title: string; date: string; end_date: string; provisional: boolean; revision: number; owner_id: string | null };
 
 function accessParams(access: PlanAccess) {
   return [access.accountId ?? null, access.guest ? digest(access.guest) : null];
@@ -149,31 +149,31 @@ export class ItineraryRepository {
 
   async create(plan: Plan, owner: { accountId: string } | { guest: string }) {
     await this.db.query(`insert into stis.itinerary(id, owner_id, guest_digest, title, start_date, end_date, provisional, revision)
-      values ($1, $2, $3, $4, $5, $5, $6, $7)`, [plan.id, "accountId" in owner ? owner.accountId : null,
-      "guest" in owner ? digest(owner.guest) : null, plan.title, plan.date, plan.provisional, plan.revision]);
+      values ($1, $2, $3, $4, $5, $6, $7, $8)`, [plan.id, "accountId" in owner ? owner.accountId : null,
+      "guest" in owner ? digest(owner.guest) : null, plan.title, plan.date, plan.endDate, plan.provisional, plan.revision]);
   }
 
   async load(id: string, access: PlanAccess, db: Db = this.db): Promise<Plan & { owned: boolean }> {
     if (!uuid.test(id) || (!access.accountId && !access.guest)) throw unavailablePlan();
-    const [row] = await db.query<PlanRow>(`select id, title, start_date as date, provisional, revision, owner_id
+    const [row] = await db.query<PlanRow>(`select id, title, start_date as date, end_date, provisional, revision, owner_id
       from stis.itinerary where id = $1 and ${accessClause}`, [id, ...accessParams(access)]);
     if (!row) throw unavailablePlan();
-    const entries = await db.query<Plan["entries"][number]>(`select id, record_id as "recordId", kind, start_time as start, end_time as "end"
+    const entries = await db.query<Plan["entries"][number]>(`select id, record_id as "recordId", kind, day, start_time as start, end_time as "end", note
       from stis.itinerary_entry where itinerary_id = $1 order by position`, [id]);
-    return { id: row.id, title: row.title, date: row.date, provisional: row.provisional, revision: row.revision, entries, owned: row.owner_id !== null };
+    return { id: row.id, title: row.title, date: row.date, endDate: row.end_date, provisional: row.provisional, revision: row.revision, entries, owned: row.owner_id !== null };
   }
 
   async save(plan: Plan, access: PlanAccess) {
     return this.db.transaction(async (tx) => {
-      const changed = await tx.query(`update stis.itinerary set title = $4, start_date = $5, end_date = $5, provisional = $6,
+      const changed = await tx.query(`update stis.itinerary set title = $4, start_date = $5, end_date = $6, provisional = $7,
           revision = revision + 1, updated_at = now()
-        where id = $1 and ${accessClause} and revision = $7 returning id`,
-      [plan.id, ...accessParams(access), plan.title, plan.date, plan.provisional, plan.revision]);
+        where id = $1 and ${accessClause} and revision = $8 returning id`,
+      [plan.id, ...accessParams(access), plan.title, plan.date, plan.endDate, plan.provisional, plan.revision]);
       if (!changed.length) throw new InputError("This itinerary changed. Reopen it before saving.", 409);
       await tx.query("delete from stis.itinerary_entry where itinerary_id = $1", [plan.id]);
       for (const [position, entry] of plan.entries.entries()) {
-        await tx.query(`insert into stis.itinerary_entry(id, itinerary_id, record_id, kind, day, start_time, end_time, position)
-          values ($1, $2, $3, $4, $5, $6, $7, $8)`, [entry.id, plan.id, entry.recordId, entry.kind, plan.date, entry.start, entry.end, position]);
+        await tx.query(`insert into stis.itinerary_entry(id, itinerary_id, record_id, kind, day, start_time, end_time, note, position)
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, [entry.id, plan.id, entry.recordId, entry.kind, entry.day, entry.start, entry.end, entry.note, position]);
       }
       return this.load(plan.id, access, tx);
     });
@@ -186,7 +186,7 @@ export class ItineraryRepository {
   }
 
   async listOwned(accountId: string): Promise<PlanSummary[]> {
-    return this.db.query<PlanSummary>(`select i.id, i.title, i.start_date as date, i.provisional,
+    return this.db.query<PlanSummary>(`select i.id, i.title, i.start_date as date, i.end_date as "endDate", i.provisional,
         (select count(*)::int from stis.itinerary_entry e where e.itinerary_id = i.id) as "entryCount",
         to_char(i.updated_at at time zone 'UTC', 'YYYY-MM-DD"T"HH24:MI:SS"Z"') as "updatedAt"
       from stis.itinerary i where i.owner_id = $1 order by i.updated_at desc, i.id`, [accountId]);

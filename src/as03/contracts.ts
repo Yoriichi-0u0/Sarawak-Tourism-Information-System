@@ -20,13 +20,15 @@ export type TourismItem = {
 export type StaffRecord = TourismItem & { publishedVersion: number | null };
 export type Notice = "cancelled" | "postponed" | "unavailable";
 export type DateNotice = "different-date";
-export type PlanSettings = { date: string; provisional: boolean };
+export type PlanSettings = { date: string; endDate: string; provisional: boolean };
 export type Entry = {
   id: string;
   recordId: string;
-  kind: "destination" | "event";
+  kind: Exclude<RecordKind, "visitor">;
+  day: string;
   start: string;
   end: string;
+  note: string;
 };
 export type Plan = PlanSettings & {
   id: string;
@@ -39,7 +41,7 @@ export type ReviewedPlan = Omit<Plan, "entries"> & {
   entries: (Entry & { title: string; location?: string; notice?: Notice; eventStartsAt?: string; dateNotice?: DateNotice })[];
   conflicts: [string, string][];
 };
-export type PlanSummary = { id: string; title: string; date: string; provisional: boolean; entryCount: number; updatedAt: string };
+export type PlanSummary = { id: string; title: string; date: string; endDate: string; provisional: boolean; entryCount: number; updatedAt: string };
 
 export type Role = "tourist" | "staff" | "admin";
 export type Account = { id: string; email: string; displayName: string; role: Role; createdAt: string };
