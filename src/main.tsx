@@ -6,12 +6,9 @@ import "@fontsource/dm-sans/latin-600.css";
 import "@fontsource/lora/latin-400.css";
 import "@fontsource/lora/latin-500.css";
 import "@fontsource/lora/latin-400-italic.css";
-import App from "./App";
 import "./styles.css";
 
-const Experience = import.meta.env.MODE === "as03"
-  ? lazy(() => import("./as03/Experience"))
-  : App;
+const Experience = lazy(() => import("./as03/Experience"));
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>

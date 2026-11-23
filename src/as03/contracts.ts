@@ -28,13 +28,20 @@ export type Entry = {
 };
 export type Plan = PlanSettings & {
   id: string;
+  title: string;
   revision: number;
   entries: Entry[];
 };
 export type ReviewedPlan = Omit<Plan, "entries"> & {
+  owned: boolean;
   entries: (Entry & { title: string; location?: string; notice?: Notice; eventStartsAt?: string; dateNotice?: DateNotice })[];
   conflicts: [string, string][];
 };
+export type PlanSummary = { id: string; title: string; date: string; provisional: boolean; entryCount: number; updatedAt: string };
+
+export type Role = "tourist" | "staff" | "admin";
+export type Account = { id: string; email: string; displayName: string; role: Role; createdAt: string };
+export type RecordActivity = { action: "create" | "save" | "publish" | "withdraw"; version: number; actor: string | null; at: string };
 
 export function destinationInterests(catalogue: readonly TourismItem[]): string[] {
   const interests = new Map<string, string>();

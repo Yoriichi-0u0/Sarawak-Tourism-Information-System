@@ -24,7 +24,7 @@
   "include": [
     "src",
     "vite.config.ts",
-    "server/as03"
+    "server"
   ],
   "exclude": [
     "src/domain.test.ts"

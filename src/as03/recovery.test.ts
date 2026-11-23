@@ -45,7 +45,7 @@ test("rebasing keeps the newer saved draft and reapplies only this editor's chan
 
 function plan(revision: number, date: string, entries: [string, string, string, string][], provisional = true): ReviewedPlan {
   return {
-    id: "plan", revision, date, provisional, conflicts: [],
+    id: "plan", title: "Trip", owned: false, revision, date, provisional, conflicts: [],
     entries: entries.map(([id, title, start, end]) => ({ id, recordId: id, kind: "destination", title, start, end })),
   };
 }

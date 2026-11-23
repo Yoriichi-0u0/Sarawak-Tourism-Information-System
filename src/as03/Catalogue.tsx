@@ -27,7 +27,7 @@ export function Catalogue({ mode, select }: {
     setError("");
     setBusy(true);
     try {
-      const results = await api<TourismItem[]>(`${mode}${query ? `?${query}` : ""}`);
+      const results = await api<TourismItem[]>(`catalog/${destinations ? "destination" : "event"}${query ? `?${query}` : ""}`);
       setItems(results);
       if (destinations && !query) setInterests(destinationInterests(results));
     } catch (cause) {

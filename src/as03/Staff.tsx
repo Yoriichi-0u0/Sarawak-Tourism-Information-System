@@ -43,9 +43,9 @@ export function Staff() {
 
   useEffect(() => {
     let live = true;
-    void api<{ active: boolean }>("staff/session").then(async (session) => {
-      const drafts = session.active ? await api<StaffRecord[]>("staff/records") : [];
-      if (live) { setActive(session.active); setRecords(drafts); }
+    void api<{ account: { role: string } | null }>("auth/session").then(async (session) => {
+      const drafts = session.account && session.account.role !== "tourist" ? await api<StaffRecord[]>("staff/records") : [];
+      if (live) { setActive(Boolean(session.account && session.account.role !== "tourist")); setRecords(drafts); }
     }).catch((cause: unknown) => {
       if (live) { setError(errorMessage(cause)); setActive(false); }
     });
@@ -143,9 +143,11 @@ export function Staff() {
 
   function login(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
-    const password = new FormData(event.currentTarget).get("password");
+    const form = new FormData(event.currentTarget);
+    const email = form.get("email");
+    const password = form.get("password");
     void run(async () => {
-      await api("staff/session", { method: "POST", body: { password } });
+      await api("auth/login", { method: "POST", body: { email, password } });
       setRecords(await api<StaffRecord[]>("staff/records"));
       setActive(true);
       setExpired(false);
@@ -187,7 +189,7 @@ export function Staff() {
       {active && <button className="as03-outline" disabled={busy} onClick={() => {
         if (!keepUnsaved()) return;
         void run(async () => {
-          await api("staff/session", { method: "DELETE" });
+          await api("auth/logout", { method: "POST" });
           setActive(false); setRecords([]); setRetained(undefined); setExpired(false); open();
         }, "Signed out.");
       }}>Sign out</button>}
@@ -202,6 +204,7 @@ export function Staff() {
     </div>}
     {active === false && <form className="as03-panel as03-signin" onSubmit={login}>
       <h2>Staff sign-in</h2><p>Sign in to save drafts and publish updates.</p>
+      <label>Staff email<input type="email" name="email" autoComplete="username" required maxLength={254} /></label>
       <label>Staff password<input type="password" name="password" autoComplete="current-password" required maxLength={200} /></label>
       <button className="as03-button" disabled={busy}><LockKeyhole size={17} /> Sign in</button>
     </form>}

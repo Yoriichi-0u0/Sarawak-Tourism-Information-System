@@ -21,7 +21,7 @@ export function TravelInformation() {
     setRecords([]);
     if (!isRecordKind(kind)) return;
     setBusy(true);
-    try { setRecords(await api<TourismItem[]>(`records?kind=${kind}`)); }
+    try { setRecords(await api<TourismItem[]>(`catalog/${kind}`)); }
     catch (cause) { setError(errorMessage(cause)); }
     finally { setBusy(false); }
   }

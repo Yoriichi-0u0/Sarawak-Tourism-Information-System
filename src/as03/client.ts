@@ -10,11 +10,11 @@ export async function api<T>(path: string, options: { method?: string; body?: un
   const headers = new Headers();
   if (options.body !== undefined) headers.set("Content-Type", "application/json");
   if (options.guest) headers.set("Authorization", `Guest ${options.guest}`);
-  const response = await fetch(`/api/as03/${path}`, {
+  const response = await fetch(`/api/v1/${path}`, {
     method: options.method, headers, body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
   const content = response.headers.get("Content-Type") ?? "";
-  if (!content.includes("application/json")) throw new Error("Start the local AS03 service to use this application.");
+  if (!content.includes("application/json")) throw new Error("The STIS service is unavailable. Try again shortly.");
   const payload = await response.json();
   if (!response.ok) throw new RequestError(payload.message, response.status, payload.issues);
   return payload as T;

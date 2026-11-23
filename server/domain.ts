@@ -1,8 +1,8 @@
 import { randomUUID } from "node:crypto";
 
-import { safeProvider } from "../../src/domain.ts";
-import { editableFields, fieldLabels } from "../../src/as03/contracts.ts";
-import type { DateNotice, Entry, Fields, Notice, Plan, PlanSettings, RecordKind, TourismItem } from "../../src/as03/contracts.ts";
+import { safeProvider } from "../src/domain.ts";
+import { editableFields, fieldLabels } from "../src/as03/contracts.ts";
+import type { DateNotice, Entry, Fields, Notice, Plan, PlanSettings, RecordKind, TourismItem } from "../src/as03/contracts.ts";
 
 export class InputError extends Error {
   constructor(message: string, readonly status = 400, readonly issues?: Fields) {
