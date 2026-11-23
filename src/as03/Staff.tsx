@@ -5,6 +5,8 @@ import { api, errorMessage, RequestError } from "./client";
 import { categories, editableFields, fieldLabels, isRecordKind } from "./contracts";
 import type { Fields, RecordKind, StaffRecord } from "./contracts";
 import { needsDestinations, optionsFor, updateFields } from "./fieldPresentation";
+import { DestinationPicker } from "./DestinationPicker";
+import { destinationHint, destinationOptions } from "./destinationSelection";
 import { compareDraft, isStale, rebaseDraft } from "./recovery";
 import { planRestore, retainDraft } from "./sessionRecovery";
 import type { Editor, Retained } from "./sessionRecovery";
@@ -280,22 +282,21 @@ export function Staff() {
                   ? "Not needed. This guidance applies across Sarawak, so it is not linked to specific destinations."
                   : "Choose a coverage first. Destination-specific guidance needs at least one destination."}</p>
               </div>;
-            const hintId = field === "destinationIds" && editor.kind === "visitor" ? "as03-hint-destinationIds" : undefined;
-            const describedBy = [hintId, errorId].filter(Boolean).join(" ") || undefined;
+            if (field === "destinationIds")
+              return <div className="as03-field as03-full-field" key={field}>
+                <DestinationPicker options={destinationOptions(records, value)} value={value} invalid={invalid}
+                  hintId="as03-hint-destinationIds" errorId={errorId} onChange={(next) => update(field, next)} />
+                <small id="as03-hint-destinationIds" className="as03-field-hint">{destinationHint(editor.kind)}</small>
+                {issues[field] && <small id={errorId} className="as03-field-error">{issues[field]}</small>}
+              </div>;
             return <div className={`as03-field ${field === "summary" ? "as03-full-field" : ""}`} key={field}><label>
               {fieldLabels[field]}
-              {field === "destinationIds" ?
-                <select aria-invalid={invalid} aria-describedby={describedBy} multiple value={value.split(",").filter(Boolean)} onChange={(event) =>
-                  update(field, Array.from(event.target.selectedOptions, (option) => option.value).join(","))}>
-                  {records.filter(({ kind }) => kind === "destination").map((destination) =>
-                    <option value={destination.id} key={destination.id}>{destination.fields.title || "Untitled destination"}</option>)}
-                </select> : choices ? <select aria-invalid={invalid} aria-describedby={errorId} value={value} onChange={(event) => update(field, event.target.value)}>
+              {choices ? <select aria-invalid={invalid} aria-describedby={errorId} value={value} onChange={(event) => update(field, event.target.value)}>
                   <option value="">Choose an option</option>
                   {choices.map(([option, label]) => <option value={option} key={option}>{label}</option>)}
                 </select> : field === "summary" ? <textarea rows={4} aria-invalid={invalid} aria-describedby={errorId} maxLength={2000} value={value} onChange={(event) => update(field, event.target.value)} />
                 : <input type={field === "startsAt" ? "datetime-local" : "text"} maxLength={2000} aria-invalid={invalid} aria-describedby={errorId} value={value} onChange={(event) => update(field, event.target.value)} />}
-              </label>{hintId && <small id={hintId} className="as03-field-hint">Choose at least one destination before publishing.</small>}
-              {issues[field] && <small id={errorId} className="as03-field-error">{issues[field]}</small>}
+              </label>{issues[field] && <small id={errorId} className="as03-field-error">{issues[field]}</small>}
             </div>;
           })}
         </div>
