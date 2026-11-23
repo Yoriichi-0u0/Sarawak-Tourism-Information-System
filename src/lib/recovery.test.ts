@@ -1,9 +1,9 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { ReviewedPlan } from "./contracts.ts";
+import type { ReviewedPlan } from "../shared/contracts.ts";
 import { compareDraft, describePlanChanges, isStale, rebaseDraft } from "./recovery.ts";
-import { RequestError } from "./client.ts";
+import { RequestError } from "./api.ts";
 
 const base = { title: "Heritage craft workshop", venue: "Community studio", status: "scheduled", summary: "Original." };
 

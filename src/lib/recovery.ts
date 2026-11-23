@@ -1,5 +1,5 @@
-import { RequestError } from "./client";
-import type { Fields, ReviewedPlan } from "./contracts";
+import { RequestError } from "./api";
+import type { Fields, ReviewedPlan } from "../shared/contracts";
 
 export function isStale(error: unknown): boolean {
   return error instanceof RequestError && error.status === 409;

@@ -1,6 +1,6 @@
 import { options } from "../shared/catalogue";
-import { editableFields } from "./contracts";
-import type { Fields, RecordKind } from "./contracts";
+import { editableFields } from "../shared/contracts";
+import type { Fields, RecordKind } from "../shared/contracts";
 
 export function optionsFor(field: string): readonly (readonly [string, string])[] | undefined {
   return Object.hasOwn(options, field) ? options[field as keyof typeof options] : undefined;

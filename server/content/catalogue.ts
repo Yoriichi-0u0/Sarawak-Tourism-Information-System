@@ -1,6 +1,6 @@
 // Curated STIS catalogue. Facts are paraphrased from the cited sources (checked 23 Nov 2026); nothing is copied.
 // "illustrative" records are demonstration data. Prices, fares, timetables and availability are never stated as facts.
-import type { Fields, RecordKind } from "../../src/as03/contracts.ts";
+import type { Fields, RecordKind } from "../../src/shared/contracts.ts";
 
 export type ContentRecord = { id: string; kind: RecordKind; fields: Fields };
 const reviewedOn = "2026-11-23";

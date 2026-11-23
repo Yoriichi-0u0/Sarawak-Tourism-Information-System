@@ -1,4 +1,4 @@
-import type { Fields, RecordKind, StaffRecord } from "./contracts";
+import type { Fields, RecordKind, StaffRecord } from "../shared/contracts";
 
 export type Editor = { id?: string; kind: RecordKind; version?: number; fields: Fields };
 export type Retained = { editor: Editor; base?: StaffRecord };

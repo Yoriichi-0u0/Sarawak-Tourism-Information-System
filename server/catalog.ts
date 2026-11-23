@@ -1,4 +1,4 @@
-import type { RecordKind, TourismItem } from "../src/as03/contracts.ts";
+import type { RecordKind, TourismItem } from "../src/shared/contracts.ts";
 import { splitTags } from "../src/shared/catalogue.ts";
 import { InputError, validDate } from "./domain.ts";
 import type { TourismRepository } from "./repositories.ts";

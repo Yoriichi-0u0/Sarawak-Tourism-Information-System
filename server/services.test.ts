@@ -1,8 +1,8 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import { destinationInterests } from "../src/as03/contracts.ts";
-import type { RecordKind, TourismItem } from "../src/as03/contracts.ts";
+import { destinationInterests } from "../src/shared/contracts.ts";
+import type { RecordKind, TourismItem } from "../src/shared/contracts.ts";
 import type { Db } from "./db.ts";
 import { InputError, ItineraryEntry } from "./domain.ts";
 import { Application } from "./services.ts";
@@ -194,7 +194,10 @@ function isInputError(status: number, pattern?: RegExp) {
 test("a destination cannot be withdrawn while published records refer to it", async (t) => {
   const app = await open(t);
   const staff = (await signIn(app));
-  await assert.rejects(async () => (await app.manager.withdraw(staff, "culture")), isInputError(409, /refer to this destination/));
+  await assert.rejects(async () => (await app.manager.withdraw(staff, "culture")), isInputError(409, /refer to this destination first: \S.*\.$/));
+  await assert.rejects(async () => (await app.manager.withdraw(staff, "culture")),
+    (error) => error instanceof InputError && error.message.includes("Heritage craft workshop") && error.message.includes("Kuching Heritage Shuttle"),
+    "the message names the records that still refer to the destination");
   assert.ok((await app.catalog.getPublishedRecord("culture")));
   (await app.manager.withdraw(staff, "sample-workshop"));
   await assert.rejects(async () => (await app.manager.withdraw(staff, "culture")), isInputError(409));

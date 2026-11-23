@@ -1,4 +1,4 @@
-import type { ReviewedPlan } from "./contracts";
+import type { ReviewedPlan } from "../shared/contracts";
 
 export type ConflictingEntry = { id: string; title: string; interval: string };
 export type ConflictPair = { first: ConflictingEntry; second: ConflictingEntry };

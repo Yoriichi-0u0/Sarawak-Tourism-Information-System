@@ -1,4 +1,4 @@
-import { fieldSpec, fieldSpecs } from "../shared/catalogue.ts";
+import { fieldSpec, fieldSpecs } from "./catalogue.ts";
 
 export const categories = {
   destination: "Destination",

@@ -1,4 +1,4 @@
-import type { Fields } from "./contracts";
+import type { Fields } from "../shared/contracts";
 
 export class RequestError extends Error {
   constructor(message: string, readonly status: number, readonly issues?: Fields) {
@@ -22,4 +22,21 @@ export async function api<T>(path: string, options: { method?: string; body?: un
 
 export function errorMessage(error: unknown) {
   return error instanceof Error ? error.message : "The operation could not be completed.";
+}
+
+/** Downloads a file response (such as an itinerary calendar) without exposing credentials in a URL. */
+export async function download(path: string, filename: string, options: { guest?: string } = {}) {
+  const headers = new Headers();
+  if (options.guest) headers.set("Authorization", `Guest ${options.guest}`);
+  const response = await fetch(`/api/v1/${path}`, { headers });
+  if (!response.ok) {
+    const payload = await response.json().catch(() => ({ message: "The file could not be downloaded." }));
+    throw new RequestError(payload.message, response.status);
+  }
+  const url = URL.createObjectURL(await response.blob());
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = filename;
+  link.click();
+  setTimeout(() => URL.revokeObjectURL(url), 1000);
 }

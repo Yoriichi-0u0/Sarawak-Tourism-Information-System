@@ -1,4 +1,4 @@
-import React, { lazy, Suspense } from "react";
+import React from "react";
 import { createRoot } from "react-dom/client";
 import "@fontsource/dm-sans/latin-400.css";
 import "@fontsource/dm-sans/latin-500.css";
@@ -6,14 +6,14 @@ import "@fontsource/dm-sans/latin-600.css";
 import "@fontsource/lora/latin-400.css";
 import "@fontsource/lora/latin-500.css";
 import "@fontsource/lora/latin-400-italic.css";
-import "./styles.css";
+import "./app/app.css";
+import App from "./app/App";
+import { applyTheme, browserStorage, readTheme } from "./lib/theme";
 
-const Experience = lazy(() => import("./as03/Experience"));
+applyTheme(readTheme(browserStorage()), document.documentElement);
 
 createRoot(document.getElementById("root")!).render(
   <React.StrictMode>
-    <Suspense fallback={<p role="status">Opening Sarawak…</p>}>
-      <Experience />
-    </Suspense>
+    <App />
   </React.StrictMode>,
 );

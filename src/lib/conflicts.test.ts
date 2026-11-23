@@ -1,7 +1,7 @@
 import assert from "node:assert/strict";
 import { test } from "node:test";
 
-import type { ReviewedPlan } from "./contracts.ts";
+import type { ReviewedPlan } from "../shared/contracts.ts";
 import { conflictDetails } from "./conflicts.ts";
 
 function plan(entries: [string, string, string, string][], conflicts: [string, string][]): ReviewedPlan {

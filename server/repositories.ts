@@ -1,6 +1,6 @@
 import { createHash } from "node:crypto";
 
-import type { Fields, Plan, PlanSummary, RecordActivity, RecordKind, StaffRecord, TourismItem } from "../src/as03/contracts.ts";
+import type { Fields, Plan, PlanSummary, RecordActivity, RecordKind, StaffRecord, TourismItem } from "../src/shared/contracts.ts";
 import type { Db } from "./db.ts";
 import { pgCode } from "./db.ts";
 import { InputError, TourismRecord } from "./domain.ts";
@@ -108,10 +108,15 @@ export class TourismRepository {
       const current = await this.loadDraft(id, tx, true);
       if (current.publishedVersion === null)
         throw new InputError("This record is not published, so there is nothing to withdraw.", 409);
-      const linked = await tx.query(`select 1 from stis.version_destination d join stis.record_state s
-          on s.record_id = d.record_id and s.published = d.version
-        where d.destination_id = $1 limit 1`, [id]);
-      if (linked.length) throw new InputError("Update or withdraw the published records that refer to this destination first.", 409);
+      const linked = await tx.query<{ title: string }>(`select v.payload->>'title' as title from stis.version_destination d
+          join stis.record_state s on s.record_id = d.record_id and s.published = d.version
+          join stis.record_version v on v.record_id = d.record_id and v.version = s.published
+        where d.destination_id = $1 order by lower(v.payload->>'title') limit 6`, [id]);
+      if (linked.length) {
+        const names = linked.slice(0, 5).map(({ title }) => title || "Untitled");
+        const more = linked.length > 5 ? " and others" : "";
+        throw new InputError(`Update or withdraw the published records that refer to this destination first: ${names.join(", ")}${more}.`, 409);
+      }
       const changed = await tx.query(`update stis.record_state set published = null, updated_at = now()
         where record_id = $1 and published is not null returning record_id`, [id]);
       if (!changed.length) throw new InputError("This record is not published, so there is nothing to withdraw.", 409);

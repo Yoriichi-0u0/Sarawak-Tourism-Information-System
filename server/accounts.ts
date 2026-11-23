@@ -1,6 +1,6 @@
 import { randomBytes, randomUUID, scrypt, timingSafeEqual } from "node:crypto";
 
-import type { Account, Role } from "../src/as03/contracts.ts";
+import type { Account, Role } from "../src/shared/contracts.ts";
 import type { Db } from "./db.ts";
 import { pgCode } from "./db.ts";
 import { InputError, object } from "./domain.ts";

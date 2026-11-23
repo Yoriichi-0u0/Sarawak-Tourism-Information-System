@@ -2,8 +2,8 @@ import assert from "node:assert/strict";
 import { test } from "node:test";
 import { renderToStaticMarkup } from "react-dom/server";
 
-import type { StaffRecord } from "./contracts.ts";
-import { DestinationPicker } from "./DestinationPicker.tsx";
+import type { StaffRecord } from "../shared/contracts.ts";
+import { DestinationPicker } from "../app/DestinationPicker.tsx";
 import { destinationHint, destinationOptions, matchingOptions, selectedIds, selectionSummary, toggleDestination } from "./destinationSelection.ts";
 import { planRestore, retainDraft } from "./sessionRecovery.ts";
 import { updateFields } from "./fieldPresentation.ts";

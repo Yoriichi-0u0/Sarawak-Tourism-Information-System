@@ -1,5 +1,5 @@
 import { seedListings } from "../src/data.ts";
-import type { Fields, RecordKind } from "../src/as03/contracts.ts";
+import type { Fields, RecordKind } from "../src/shared/contracts.ts";
 import { TourismRecord } from "./domain.ts";
 import type { Db } from "./db.ts";
 import type { TourismRepository } from "./repositories.ts";

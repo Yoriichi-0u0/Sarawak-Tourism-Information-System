@@ -1,5 +1,5 @@
-import { isRecordKind } from "../src/as03/contracts.ts";
-import type { Account } from "../src/as03/contracts.ts";
+import { isRecordKind } from "../src/shared/contracts.ts";
+import type { Account } from "../src/shared/contracts.ts";
 import { toCalendar } from "./calendar.ts";
 import { InputError, object } from "./domain.ts";
 import type { Application } from "./services.ts";

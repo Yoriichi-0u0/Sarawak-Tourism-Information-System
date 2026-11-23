@@ -1,4 +1,4 @@
-import type { RecordKind, TourismItem } from "./contracts";
+import type { RecordKind, TourismItem } from "../shared/contracts";
 
 export type DestinationOption = { id: string; title: string };
 

@@ -1,6 +1,6 @@
 import { randomUUID } from "node:crypto";
 
-import type { Plan, RecordKind, ReviewedPlan, TourismItem } from "../src/as03/contracts.ts";
+import type { Plan, RecordKind, ReviewedPlan, TourismItem } from "../src/shared/contracts.ts";
 
 export { TourismCatalog };
 import { AccountService, defaultHashCost, newToken, type Clock, type HashCost } from "./accounts.ts";

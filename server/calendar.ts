@@ -1,4 +1,4 @@
-import type { ReviewedPlan } from "../src/as03/contracts.ts";
+import type { ReviewedPlan } from "../src/shared/contracts.ts";
 import { addDays } from "./domain.ts";
 
 const escape = (value: string) => value.replace(/\\/g, "\\\\").replace(/;/g, "\\;").replace(/,/g, "\\,").replace(/\r?\n/g, "\\n");

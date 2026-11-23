@@ -1,4 +1,4 @@
-import type { Fields } from "../../src/as03/contracts.ts";
+import type { Fields } from "../../src/shared/contracts.ts";
 import { InputError, TourismRecord } from "../domain.ts";
 import type { TourismRepository } from "../repositories.ts";
 import { catalogue, type ContentRecord } from "./catalogue.ts";
