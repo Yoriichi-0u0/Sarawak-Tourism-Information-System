@@ -20,9 +20,10 @@ Target: preview `sarawak-tourism-information-system-pkchvu5yt.vercel.app` (Verce
 | Suite | Result |
 |---|---|
 | Journey, 27 steps, Chromium 1366 px | **27/27**, no console errors, no overflow |
-| Journey, Chromium 390 px | First run: **failed at step 2**. This was a real defect: the new hero photo credit covered the search button on phones. Fixed and checked locally (27/27); see section 5. |
-| Filters | 11/11 (before the mobile filter checks were added) |
-| Cleanup | 2 synthetic tourists and their trips deleted; the synthetic admin and staff account disabled (kept so the append-only audit trail stays readable); curated content re-synced. Result: 0 tourist accounts, 0 trips, and the owner's administrator as the only active staff account. |
+| Journey, Chromium 390 px | First run (`pkchvu5yt`): **failed at step 2**, a real defect (the hero photo credit covered the Search button on phones, D-6). After the fix (`11c7639`, preview `q8a042f5y`): **27/27** |
+| Filters (including the mobile collapsible filters) | **13/13** on `q8a042f5y` (11/11 on `pkchvu5yt` before the mobile checks were added) |
+| Keyboard and layout | **13/13** on `q8a042f5y`, on 2 runs. The first hosted run exposed two harness gaps: no share-link cookie, and a menu check that read the menu state before it updated. Both were fixed in the suite; neither was an application defect |
+| Cleanup (after each hosted session) | Synthetic tourists and their trips deleted; the synthetic admin and staff account disabled (kept so the append-only audit trail stays readable); curated content re-synced. Result: 0 tourist accounts, 0 trips, and the owner's administrator as the only active staff account. |
 
 ## 3. Requirement acceptance matrix
 
@@ -56,7 +57,7 @@ Evidence key: **U** = unit or integration tests (`npm test` 144, `test:postgres`
 |---|---|---|
 | Chromium (Chrome for Testing 1248) | 27/27 | 27/27 |
 | WebKit (Playwright build 2370) | 27/27 | 27/27 |
-| Hosted Chromium | 27/27 | Fixed defect, see section 5 |
+| Hosted Chromium (Vercel + Supabase) | 27/27 | 27/27 after fixing D-6 |
 
 Microsoft Edge uses the same Chromium engine and was used for manual review. Safari.app and physical phones were not tested.
 
