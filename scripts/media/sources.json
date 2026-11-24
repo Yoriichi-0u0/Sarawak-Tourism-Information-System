@@ -1,0 +1,216 @@
+[
+ {
+  "id": "bako-coast",
+  "commons": "File:Bako National Park, Kuching, Sarawak, Malaysia 03.jpg",
+  "subject": "Sandstone cliffs and beach at Bako National Park",
+  "alt": "Sculpted orange sandstone rocks on a beach at Bako National Park, with sea and forested headland behind",
+  "recordIds": [
+   "bako"
+  ],
+  "focus": "60% 50%"
+ },
+ {
+  "id": "bako-proboscis",
+  "commons": "File:Proboscis monkey (Bako National Park, July 2025).jpg",
+  "subject": "Proboscis monkey at Bako National Park",
+  "alt": "A proboscis monkey sitting on a branch in the forest at Bako National Park",
+  "recordIds": [],
+  "focus": "45% 40%"
+ },
+ {
+  "id": "bako-hq-beach",
+  "commons": "File:Beach outside park HQ at Bako NP.jpg",
+  "subject": "Beach outside the park headquarters at Bako National Park",
+  "alt": "Sunset over the beach outside Bako National Park headquarters",
+  "recordIds": [],
+  "focus": "50% 55%"
+ },
+ {
+  "id": "bako-boat",
+  "commons": "File:My Boat returns to Kampung Bako (15112798544).jpg",
+  "subject": "Boat returning to Kampung Bako jetty",
+  "alt": "A small passenger boat on shallow water near Kampung Bako",
+  "recordIds": [
+   "bako-boat"
+  ],
+  "focus": "45% 60%"
+ },
+ {
+  "id": "kubah-waterfall",
+  "commons": "File:Kubah National Park.jpg",
+  "subject": "Waterfall in Kubah National Park",
+  "alt": "A cascading waterfall in the rainforest of Kubah National Park",
+  "recordIds": [
+   "kubah"
+  ],
+  "focus": "50% 45%"
+ },
+ {
+  "id": "semenggoh-orangutan",
+  "commons": "File:Orangutan at Semenggoh Nature reserve.jpg",
+  "subject": "Orangutan at Semenggoh Nature Reserve",
+  "alt": "An orangutan hanging from a rope among trees at Semenggoh",
+  "recordIds": [
+   "semenggoh"
+  ],
+  "focus": "50% 35%"
+ },
+ {
+  "id": "cultural-village",
+  "commons": "File:Sarawak Cultural Village - panoramio.jpg",
+  "subject": "Sarawak Cultural Village lake with Mount Santubong",
+  "alt": "The lake at Sarawak Cultural Village surrounded by forest, with Mount Santubong behind",
+  "recordIds": [
+   "culture"
+  ],
+  "focus": "50% 50%"
+ },
+ {
+  "id": "borneo-cultures-museum",
+  "commons": "File:Borneo Cultures Museum (2024).jpg",
+  "subject": "Borneo Cultures Museum, Kuching",
+  "alt": "The patterned facade and peaked roofline of the Borneo Cultures Museum in Kuching",
+  "recordIds": [
+   "museum"
+  ],
+  "focus": "50% 50%"
+ },
+ {
+  "id": "kuching-waterfront",
+  "commons": "File:Kuching Waterfront (17586631028).jpg",
+  "subject": "Kuching Waterfront and the Sarawak River",
+  "alt": "The Sarawak River at Kuching Waterfront with the State Legislative Assembly building on the far bank",
+  "recordIds": [
+   "waterfront"
+  ],
+  "focus": "50% 55%"
+ },
+ {
+  "id": "kuching-old-town",
+  "commons": "File:Kuching City (17776143971).jpg",
+  "subject": "Chinatown gate on Carpenter Street, Kuching",
+  "alt": "A red and gold Chinese archway over a street of shophouses in Kuching's old town",
+  "recordIds": [
+   "kuching"
+  ],
+  "focus": "50% 40%"
+ },
+ {
+  "id": "mulu-pinnacles",
+  "commons": "File:Mulu Pinnacles.jpg",
+  "subject": "The Pinnacles, Gunung Mulu National Park",
+  "alt": "Razor-sharp grey limestone pinnacles rising from rainforest in Gunung Mulu National Park",
+  "recordIds": [
+   "mulu"
+  ],
+  "focus": "50% 50%"
+ },
+ {
+  "id": "mulu-hq-boardwalk",
+  "commons": "File:The Boardwalk in front of the headquarters (15385242480).jpg",
+  "subject": "Boardwalk in front of Mulu park headquarters",
+  "alt": "A boardwalk across a lawn in front of the Gunung Mulu park headquarters, edged by forest",
+  "recordIds": [],
+  "focus": "50% 60%"
+ },
+ {
+  "id": "niah-great-cave",
+  "commons": "File:Niah Great Cave, Sarawak, Malaysia.jpg",
+  "subject": "The Great Cave, Niah National Park",
+  "alt": "Looking out from the huge mouth of the Great Cave at Niah towards rainforest",
+  "recordIds": [
+   "niah"
+  ],
+  "focus": "50% 45%"
+ },
+ {
+  "id": "miri-canada-hill",
+  "commons": "File:Daybreak from Canada hill.jpg",
+  "subject": "Daybreak over Miri from Canada Hill",
+  "alt": "Clouds and early sun over the coastline of Miri seen from Canada Hill",
+  "recordIds": [
+   "miri"
+  ],
+  "focus": "50% 50%"
+ },
+ {
+  "id": "santubong-river",
+  "commons": "File:Santubong Peninsula seen from Santubong River (15659139549).jpg",
+  "subject": "Santubong peninsula seen from the Santubong River",
+  "alt": "Mount Santubong rising above mangroves and the calm Santubong River",
+  "recordIds": [],
+  "focus": "50% 45%"
+ },
+ {
+  "id": "sarawak-laksa",
+  "commons": "File:Laksa Sarawak - YF.jpg",
+  "subject": "A bowl of Sarawak laksa",
+  "alt": "A bowl of Sarawak laksa with prawns, shredded omelette, chicken and lime",
+  "recordIds": [],
+  "focus": "50% 50%"
+ },
+ {
+  "id": "kolo-mee",
+  "commons": "File:Kolo mee.jpg",
+  "subject": "A plate of kolo mee",
+  "alt": "A bowl of kolo mee noodles with minced pork and red char siu, with chilli on the side",
+  "recordIds": [],
+  "focus": "50% 50%"
+ },
+ {
+  "id": "longhouse",
+  "commons": "File:Longhouse, Sarawak (7246599192).jpg",
+  "subject": "A longhouse in Sarawak",
+  "alt": "A wooden longhouse on stilts among trees in Sarawak",
+  "recordIds": [],
+  "focus": "50% 50%"
+ },
+ {
+  "id": "kuching-airport",
+  "commons": "File:Kuching International Airport 2024 01.jpg",
+  "subject": "Kuching International Airport terminal",
+  "alt": "The wave-shaped roof of the Kuching International Airport terminal under a blue sky",
+  "recordIds": [],
+  "focus": "50% 50%"
+ },
+ {
+  "id": "maswings-atr",
+  "commons": "File:MASwings ATR 72 9M-MWE Kota Kinabalu 2024 (01).jpg",
+  "subject": "MASwings ATR 72 turboprop (photographed at Kota Kinabalu)",
+  "alt": "A MASwings ATR 72 turboprop aircraft climbing against a blue sky",
+  "recordIds": [],
+  "focus": "50% 50%"
+ },
+ {
+  "id": "kuching-sentral-coach",
+  "commons": "File:Pontianak-Kuching coach at Kuching Sentral.jpg",
+  "subject": "Express coach at Kuching Sentral bus terminal",
+  "alt": "A long-distance express coach parked at the Kuching Sentral bus terminal",
+  "recordIds": [],
+  "focus": "50% 55%"
+ },
+ {
+  "id": "kuching-city-bus",
+  "commons": "File:City bus in Kuching 01.jpg",
+  "subject": "City bus in Kuching",
+  "alt": "A green and yellow city bus on a street in Kuching",
+  "recordIds": [],
+  "focus": "50% 55%"
+ },
+ {
+  "id": "generated-hotel-room",
+  "local": "scripts/media/originals/generated-hotel-room.webp",
+  "subject": "AI-generated illustration of a hotel room",
+  "alt": "Illustration of a bright hotel room with a view of forested hills",
+  "recordIds": [],
+  "focus": "50% 50%"
+ },
+ {
+  "id": "generated-cafe",
+  "local": "scripts/media/originals/generated-cafe.webp",
+  "subject": "AI-generated illustration of a cafe courtyard",
+  "alt": "Illustration of a cafe table in a leafy courtyard",
+  "recordIds": [],
+  "focus": "50% 50%"
+ }
+]

@@ -11,14 +11,15 @@ import { categories, isRecordKind, type Account, type Fields, type RecordActivit
 import { DestinationPicker } from "../DestinationPicker";
 import { Link } from "../router";
 import { isStaff, useSession } from "../session";
-import { formatDay, Loading, Notice, photos, useTitle } from "../ui";
+import { mediaAsset, mediaLibrary, mediaRole } from "../../shared/media";
+import { formatDay, Loading, Notice, useTitle } from "../ui";
 
 type Status = "all" | "published" | "changes" | "unpublished";
 const state = (record: StaffRecord) => record.publishedVersion === null ? "Not published" : record.publishedVersion === record.version ? "Published" : `Published v${record.publishedVersion}, draft v${record.version}`;
 const blank = (kind: RecordKind): Fields => Object.fromEntries(fieldSpecs(kind).map(({ key }) => [key, ""]));
 
-function FieldInput({ spec, kind, fields, issues, records, onChange }: {
-  spec: FieldSpec; kind: RecordKind; fields: Fields; issues: Fields; records: StaffRecord[]; onChange: (key: string, value: string) => void;
+function FieldInput({ spec, kind, fields, issues, records, onChange, recordId }: {
+  spec: FieldSpec; kind: RecordKind; fields: Fields; issues: Fields; records: StaffRecord[]; onChange: (key: string, value: string) => void; recordId?: string;
 }) {
   const value = fields[spec.key] ?? "";
   const id = `field-${spec.key}`;
@@ -38,10 +39,19 @@ function FieldInput({ spec, kind, fields, issues, records, onChange }: {
       onChange={(event) => onChange(spec.key, (event.target.checked ? [...splitTags(value), option] : splitTags(value).filter((tag) => tag !== option)).join(","))} />{text}</label>)}</div>{problem}</fieldset>;
   let input;
   if (spec.type === "longtext") input = <textarea {...common} value={value} maxLength={2000} onChange={(event) => onChange(spec.key, event.target.value)} />;
-  else if (spec.type === "select" || spec.type === "image") input = <select {...common} value={value} onChange={(event) => onChange(spec.key, event.target.value)}>
-    <option value="">{spec.type === "image" ? "No photo" : "Not set"}</option>
-    {(spec.type === "image" ? [...photos].map((name) => [name, `${name} (illustrative image)`] as const) : spec.options ?? []).map(([option, text]) => <option key={option} value={option}>{text}</option>)}
-    {value && !(spec.type === "image" ? photos.has(value) : spec.options?.some(([option]) => option === value)) && <option value={value}>{value} (not in list)</option>}</select>;
+  else if (spec.type === "image") {
+    const asset = mediaAsset(value);
+    input = <><select {...common} value={value} onChange={(event) => onChange(spec.key, event.target.value)}>
+      <option value="">No image (category icon)</option>
+      {mediaLibrary.map((entry) => <option key={entry.id} value={entry.id}>{entry.subject} · {entry.kind === "photo" ? entry.licence : "AI illustration"}</option>)}
+      {value && !asset && <option value={value}>{value} (not in the media library: choose a replacement)</option>}</select>
+      {asset && <small>{mediaRole(asset, recordId) === "exact" ? "Shown as a photo of this listing." : asset.kind === "photo"
+        ? "Shown as a representative photo, captioned as not depicting this listing." : "Shown as an AI illustration."} Credit: {asset.kind === "photo" ? `${asset.author}, ${asset.licence}` : "STIS"}.</small>}</>;
+  }
+  else if (spec.type === "select") input = <select {...common} value={value} onChange={(event) => onChange(spec.key, event.target.value)}>
+    <option value="">Not set</option>
+    {(spec.options ?? []).map(([option, text]) => <option key={option} value={option}>{text}</option>)}
+    {value && !spec.options?.some(([option]) => option === value) && <option value={value}>{value} (not in list)</option>}</select>;
   else input = <input {...common} type={spec.type === "url" ? "url" : "text"} value={value} maxLength={2000}
     placeholder={spec.type === "datetime" ? "2026-12-05 or 2026-12-05T10:00" : undefined} onChange={(event) => onChange(spec.key, event.target.value)} />;
   return <label className={`field${wide ? " wide" : ""}`} htmlFor={id}>{spec.label}{hint}{input}{problem}</label>;
@@ -251,7 +261,7 @@ export function StaffPage() {
           : <form className="panel stack" onSubmit={(event) => { event.preventDefault(); void save(); }} aria-label={`Edit ${categories[editor.kind]}`}>
             <div className="spread"><h2 style={{ margin: 0 }}>{editor.id ? editor.fields.title || "Untitled" : `New ${categories[editor.kind].toLowerCase()}`}</h2>
               <span className="badge neutral">{categories[editor.kind]}{current ? ` · ${state(current)}` : " · not saved"}{dirty ? " · unsaved changes" : ""}</span></div>
-            <div className="editor-grid">{fieldSpecs(editor.kind).map((spec) => <FieldInput key={spec.key} spec={spec} kind={editor.kind} fields={editor.fields} issues={issues} records={records ?? []} onChange={edit} />)}</div>
+            <div className="editor-grid">{fieldSpecs(editor.kind).map((spec) => <FieldInput key={spec.key} spec={spec} kind={editor.kind} fields={editor.fields} issues={issues} records={records ?? []} onChange={edit} recordId={editor.id} />)}</div>
             <div className="row">
               <button className="button secondary" disabled={busy || Boolean(conflict)}><Save size={16} aria-hidden="true" />Save draft</button>
               <button type="button" className="button primary" disabled={busy || dirty || !editor.id || Boolean(conflict)} onClick={publish}><Send size={16} aria-hidden="true" />Publish</button>

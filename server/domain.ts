@@ -3,6 +3,7 @@ import { randomUUID } from "node:crypto";
 import { safeProvider } from "../src/domain.ts";
 import { editableFields, labelFor } from "../src/shared/contracts.ts";
 import { fieldSpecs, isDateOrDateTime, splitTags, type CatalogueKind } from "../src/shared/catalogue.ts";
+import { mediaIds } from "../src/shared/media.ts";
 import type { DateNotice, Entry, Fields, Notice, Plan, PlanSettings, RecordKind, TourismItem } from "../src/shared/contracts.ts";
 
 export class InputError extends Error {
@@ -94,6 +95,8 @@ export abstract class TourismRecord {
         issues[spec.key] = `Choose a valid ${spec.label.toLowerCase()}.`;
       if (spec.type === "tags" && splitTags(value).some((tag) => !spec.options?.some(([option]) => option === tag)))
         issues[spec.key] = `Choose ${spec.label.toLowerCase()} from the list.`;
+      if (spec.type === "image" && !mediaIds.has(value))
+        issues[spec.key] = "Choose an image from the media library, which records its source and licence.";
       if (spec.type === "datetime" && !isDateOrDateTime(value))
         issues[spec.key] = "Enter a valid Kuching date and time.";
     }

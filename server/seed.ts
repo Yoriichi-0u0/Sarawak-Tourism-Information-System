@@ -15,7 +15,7 @@ export async function seedCatalogue(db: Db, repo: TourismRepository) {
     for (const item of seedListings.filter((listing) => listing.kind === "discover")) {
       await add(item.id, "destination", {
         title: item.name, location: item.region, interest: item.category,
-        summary: item.description, activities: item.duration, image: item.image, provider: item.url,
+        summary: item.description, activities: item.duration, image: "", provider: item.url,
       });
     }
     await add("sample-event", "event", {

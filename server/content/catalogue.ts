@@ -12,12 +12,12 @@ const staff = { provenance: "staff", reviewedOn };
 const destinations: ContentRecord[] = [
   { id: "kuching", kind: "destination", fields: { title: "Kuching", location: "Kuching", interest: "City & food",
     summary: "Sarawak's capital on the Sarawak River: heritage streets, riverside walks, museums and a famous breakfast culture of Sarawak laksa and kolo mee. Most visitors start their trip here.",
-    activities: "Heritage walks, museums, food trails, river views", image: "waterfront",
+    activities: "Heritage walks, museums, food trails, river views",
     ...reported("Sarawak Tourism Board", "https://sarawaktourism.com/blog/sarawak-top-10-iconic-food") } },
   { id: "bako", kind: "destination", fields: { title: "Bako National Park", location: "Kuching", interest: "Nature & wildlife",
     summary: "Gazetted in 1957, Bako is Sarawak's oldest national park: a compact peninsula of sandstone cliffs, beaches, mangroves and forest trails where proboscis monkeys are often seen. It was named an ASEAN Heritage Park in 2025. The park is reached only by boat from Kampung Bako.",
     activities: "Jungle and coastal trails, wildlife spotting, beaches", accessibilityNotes: "Access is by small boat from a jetty, and most trails are uneven. Ask the park about your needs before travelling.",
-    image: "bako", provider: "https://sfc.sarawak.gov.my/web/subpage/webpage_view/49",
+    provider: "https://sfc.sarawak.gov.my/web/subpage/webpage_view/49",
     ...verified("Sarawak Forestry Corporation", "https://sfc.sarawak.gov.my/web/subpage/webpage_view/49") } },
   { id: "kubah", kind: "destination", fields: { title: "Kubah National Park", location: "Kuching (about 20 km)", interest: "Nature & wildlife",
     summary: "A forested park about 20–22 km from Kuching, known for waterfalls, palms and an exceptional variety of frogs; night-time frog walks are a highlight. The Matang Wildlife Centre, a wildlife rescue centre, is part of the park.",
@@ -25,28 +25,28 @@ const destinations: ContentRecord[] = [
     ...verified("Sarawak Tourism Board", "https://sarawaktourism.com/blog/take-a-leap-into-kubah-national-park") } },
   { id: "semenggoh", kind: "destination", fields: { title: "Semenggoh Wildlife Centre", location: "Kuching (Borneo Highlands Road)", interest: "Nature & wildlife",
     summary: "A forest reserve where semi-wild orangutans may come to feeding platforms during a morning and an afternoon session. Sightings are never guaranteed, especially in fruiting season when food is plentiful in the forest. Session times vary, so check before you go.",
-    activities: "Orangutan viewing at feeding sessions", image: "wildlife",
+    activities: "Orangutan viewing at feeding sessions",
     ...verified("Sarawak Tourism Board", "https://sarawaktourism.com/blog/semenggoh-wildlife-centre") } },
   { id: "culture", kind: "destination", fields: { title: "Sarawak Cultural Village", location: "Santubong, Kuching", interest: "Culture & heritage",
     summary: "A living museum at the foot of Mount Santubong presenting the traditional houses and cultures of Sarawak's communities. It is also the home of the Rainforest World Music Festival.",
-    activities: "Traditional houses, cultural performances, festivals", image: "culture",
+    activities: "Traditional houses, cultural performances, festivals",
     ...reported("Rainforest World Music Festival", "https://rwmf.net/") } },
   { id: "museum", kind: "destination", fields: { title: "Borneo Cultures Museum", location: "Kuching", interest: "Culture & heritage",
     summary: "Opened on 9 March 2022 within the Sarawak Museum Complex, the museum presents Sarawak's peoples, history and heritage across several floors of galleries.",
     activities: "Galleries, children's gallery, exhibitions", hours: "Mon–Fri 9:00–16:45; Sat, Sun and public holidays 9:30–16:30 (check before visiting)",
-    image: "museum", provider: "https://museum.sarawak.gov.my/web/subpage/webpage_view/169",
+    provider: "https://museum.sarawak.gov.my/web/subpage/webpage_view/169",
     ...verified("Sarawak Museum Department", "https://museum.sarawak.gov.my/web/subpage/webpage_view/169") } },
   { id: "waterfront", kind: "destination", fields: { title: "Kuching Waterfront", location: "Kuching", interest: "City & food",
     summary: "A riverside promenade in central Kuching for evening walks, river views and nearby heritage streets.",
-    activities: "Evening walks, river views, food nearby", image: "waterfront", ...staff } },
+    activities: "Evening walks, river views, food nearby", ...staff } },
   { id: "mulu", kind: "destination", fields: { title: "Gunung Mulu National Park", location: "Miri Division", interest: "Adventure",
     summary: "A UNESCO World Heritage Site famous for vast show caves, limestone pinnacles and rainforest. The park is usually reached by air from Miri, Kuching or Kota Kinabalu; overland access needs a long road and river journey.",
-    activities: "Show caves, canopy skywalk, guided treks, the Pinnacles", image: "cave", provider: "https://www.mulunationalpark.com/getting-there.php",
+    activities: "Show caves, canopy skywalk, guided treks, the Pinnacles", provider: "https://www.mulunationalpark.com/getting-there.php",
     accessibilityNotes: "Some show caves have boardwalks; adventure caves and treks are strenuous. Confirm accessibility with the park.",
     ...verified("Gunung Mulu National Park", "https://www.mulunationalpark.com/getting-there.php") } },
   { id: "niah", kind: "destination", fields: { title: "Niah National Park", location: "Miri Division", interest: "Culture & heritage",
     summary: "Inscribed on the UNESCO World Heritage List in July 2024 as the Archaeological Heritage of Niah National Park's Caves Complex. The Great Cave preserves one of the longest records of people living with rainforests, spanning tens of thousands of years.",
-    activities: "Cave walks, archaeology, boardwalk trails", image: "cave", provider: "https://whc.unesco.org/en/list/1014",
+    activities: "Cave walks, archaeology, boardwalk trails", provider: "https://whc.unesco.org/en/list/1014",
     ...verified("UNESCO World Heritage Centre", "https://whc.unesco.org/en/list/1014") } },
   { id: "miri", kind: "destination", fields: { title: "Miri", location: "Miri", interest: "City & food",
     summary: "Sarawak's second-largest city and the gateway to the northeast, including Niah and Gunung Mulu national parks.",
@@ -57,7 +57,7 @@ const events: ContentRecord[] = [
   { id: "rwmf-2026", kind: "event", fields: { title: "Rainforest World Music Festival 2026", destinationIds: "culture",
     venue: "Sarawak Cultural Village, Santubong", status: "scheduled", startsAt: "2026-06-26", endsAt: "2026-06-28",
     summary: "The 29th edition of Sarawak's international world-music festival, themed \"Regenerations: Roots & Rhythms\". Passes were sold by the organiser.",
-    registration: "Festival passes through the official site", image: "culture", provider: "https://rwmf.net/",
+    registration: "Festival passes through the official site", provider: "https://rwmf.net/",
     ...verified("Rainforest World Music Festival", "https://rwmf.net/") } },
   { id: "demo-heritage-walk", kind: "event", fields: { title: "Old Kuching heritage walk", destinationIds: "kuching",
     venue: "Kuching Waterfront meeting point", status: "scheduled", startsAt: "2026-11-28T09:00", endsAt: "2026-11-28T11:00",
@@ -89,11 +89,11 @@ const accommodation: ContentRecord[] = [
   { id: "demo-riverside-hotel", kind: "accommodation", fields: { title: "Riverside heritage hotel", destinationIds: "kuching",
     accommodationType: "hotel", location: "Kuching city centre", priceGuide: "mid",
     amenities: "wifi,air-conditioning,breakfast,restaurant", accessibility: "step-free-entrance,accessible-bathroom,lift",
-    summary: "Illustrative hotel record for demonstrating search, comparison and accessibility filters. Not a real property.", image: "stay", ...illustrative } },
+    summary: "Illustrative hotel record for demonstrating search, comparison and accessibility filters. Not a real property.", ...illustrative } },
   { id: "demo-santubong-resort", kind: "accommodation", fields: { title: "Santubong beach resort", destinationIds: "culture",
     accommodationType: "resort", location: "Santubong", priceGuide: "premium",
     amenities: "wifi,air-conditioning,pool,restaurant,family-rooms,parking,airport-transfer", accessibility: "step-free-entrance,ground-floor-rooms",
-    summary: "Illustrative resort record. Not a real property.", image: "stay", ...illustrative } },
+    summary: "Illustrative resort record. Not a real property.", ...illustrative } },
   { id: "demo-city-hostel", kind: "accommodation", fields: { title: "Carpenter Street backpacker hostel", destinationIds: "kuching",
     accommodationType: "hostel", location: "Kuching heritage quarter", priceGuide: "budget", amenities: "wifi,air-conditioning",
     summary: "Illustrative hostel record. Not a real property.", ...illustrative } },
@@ -103,7 +103,7 @@ const accommodation: ContentRecord[] = [
   { id: "demo-miri-hotel", kind: "accommodation", fields: { title: "Miri gateway hotel", destinationIds: "miri",
     accommodationType: "hotel", location: "Miri city centre", priceGuide: "mid",
     amenities: "wifi,air-conditioning,breakfast,parking,airport-transfer", accessibility: "step-free-entrance,lift",
-    summary: "Illustrative hotel record for travellers heading to Niah or Mulu. Not a real property.", image: "stay", ...illustrative } },
+    summary: "Illustrative hotel record for travellers heading to Niah or Mulu. Not a real property.", ...illustrative } },
 ];
 
 const transport: ContentRecord[] = [
@@ -164,10 +164,10 @@ const dining: ContentRecord[] = [
     ...reported("TTR Weekly", "https://ttrweekly.com/site/2023/09/the-perfect-kuching-halal-food-crawl") } },
   { id: "demo-laksa-breakfast", kind: "dining", fields: { title: "Morning laksa corner", destinationIds: "kuching", cuisine: "Sarawak laksa",
     location: "Kuching city centre", hours: "06:30–12:00", priceGuide: "budget",
-    summary: "Illustrative breakfast stall serving Sarawak laksa: rice vermicelli in a spiced prawn broth with omelette strips and lime. Not a real outlet.", image: "food", ...illustrative } },
+    summary: "Illustrative breakfast stall serving Sarawak laksa: rice vermicelli in a spiced prawn broth with omelette strips and lime. Not a real outlet.", ...illustrative } },
   { id: "demo-waterfront-food-court", kind: "dining", fields: { title: "Waterfront food court", destinationIds: "waterfront", cuisine: "Mixed hawker",
     location: "Kuching Waterfront", dietary: "halal-options,vegetarian-options", hours: "16:00–23:00", priceGuide: "budget",
-    summary: "Illustrative food court record with several stalls. Not a real outlet.", image: "cafe", ...illustrative } },
+    summary: "Illustrative food court record with several stalls. Not a real outlet.", ...illustrative } },
   { id: "demo-garden-kitchen", kind: "dining", fields: { title: "Garden vegetarian kitchen", destinationIds: "kuching", cuisine: "Vegetarian",
     location: "Kuching", dietary: "vegetarian-options,vegan-options,pork-free", hours: "11:00–21:00", priceGuide: "mid",
     summary: "Illustrative vegetarian restaurant record. Not a real outlet.", ...illustrative } },
@@ -214,4 +214,25 @@ const visitor: ContentRecord[] = [
     ...staff } },
 ];
 
-export const catalogue: ContentRecord[] = [...destinations, ...events, ...accommodation, ...transport, ...dining, ...visitor];
+/**
+ * Which library image each record shows (src/shared/mediaLibrary.ts). A photo whose `recordIds` include the record
+ * depicts it; any other photo is captioned as representative. Fictional records never get an "exact" photo, and
+ * records with no suitable licensed photo show the category icon instead.
+ */
+const images: Record<string, string> = {
+  kuching: "kuching-old-town", bako: "bako-coast", kubah: "kubah-waterfall", semenggoh: "semenggoh-orangutan", culture: "cultural-village",
+  museum: "borneo-cultures-museum", waterfront: "kuching-waterfront", mulu: "mulu-pinnacles", niah: "niah-great-cave", miri: "miri-canada-hill",
+  "rwmf-2026": "cultural-village", "demo-heritage-walk": "kuching-old-town", "demo-mangrove-walk": "bako-proboscis",
+  "demo-river-food-evening": "kuching-waterfront", "demo-cave-photography": "mulu-pinnacles", "demo-cultural-evening": "cultural-village",
+  "bako-park-lodging": "bako-hq-beach", "mulu-park-hq": "mulu-hq-boardwalk", "demo-riverside-hotel": "generated-hotel-room",
+  "demo-santubong-resort": "generated-hotel-room", "demo-miri-hotel": "generated-hotel-room", "demo-city-hostel": "generated-hotel-room",
+  "kuching-bako-bus": "kuching-city-bus", "bako-boat": "bako-boat", "kuching-semenggoh-bus": "kuching-city-bus",
+  "kuching-airport-grab": "kuching-airport", "kuching-santubong-grab": "santubong-river", "kuching-mulu-flight": "maswings-atr",
+  "miri-mulu-flight": "maswings-atr", "kuching-miri-coach": "kuching-sentral-coach", "demo-miri-niah-transfer": "niah-great-cave",
+  "mee-kolok-hj-salleh": "kolo-mee", "demo-laksa-breakfast": "sarawak-laksa", "demo-waterfront-food-court": "kuching-waterfront",
+  "demo-garden-kitchen": "generated-cafe", "semenggoh-sightings": "semenggoh-orangutan", "gawai-etiquette": "longhouse",
+  "mulu-weather-flights": "maswings-atr", "access-parks": "bako-boat",
+};
+
+export const catalogue: ContentRecord[] = [...destinations, ...events, ...accommodation, ...transport, ...dining, ...visitor]
+  .map((record) => ({ ...record, fields: { ...record.fields, image: images[record.id] ?? "" } }));

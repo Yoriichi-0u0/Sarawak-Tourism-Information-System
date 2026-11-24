@@ -6,8 +6,11 @@ import type { TourismItem } from "../../shared/contracts";
 import { sections } from "../kinds";
 import { Link, navigate } from "../router";
 import { useSession } from "../session";
-import { today, useTitle } from "../ui";
+import { mediaAsset } from "../../shared/media";
+import { Picture, today, useTitle } from "../ui";
 import { ResultCard } from "./Discover";
+
+const hero = mediaAsset("santubong-river");
 
 export function HomePage() {
   const { account } = useSession();
@@ -27,7 +30,7 @@ export function HomePage() {
   }
   return <>
     <section className="hero" aria-labelledby="hero-title">
-      <img src="/images/hero.webp" alt="" />
+      {hero && <Picture asset={hero} sizes="(max-width: 1240px) 100vw, 1200px" eager />}
       <div className="hero-content">
         <h1 id="hero-title">Explore Sarawak, plan with confidence.</h1>
         <p>Destinations, stays, transport, food, events and visitor information in one place. Then build a day-by-day trip you can come back to.</p>
@@ -37,7 +40,7 @@ export function HomePage() {
           <button className="button primary"><Search size={18} aria-hidden="true" />Search</button>
         </form>
       </div>
-      <span className="image-note">Illustrative image</span>
+      {hero && <span className="image-note">{hero.subject} · Photo: {hero.author}, {hero.licence} · <Link to="/credits">Credits</Link></span>}
     </section>
     <nav className="tiles" aria-label="Browse by category">
       {sections.map(({ path, label, blurb, icon: Icon }) => <Link key={path} className="tile" to={path}><Icon size={26} aria-hidden="true" /><strong>{label}</strong><span>{blurb}</span></Link>)}

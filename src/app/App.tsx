@@ -5,6 +5,7 @@ import { applyTheme, browserStorage, readTheme, saveTheme, themeChoices, type Th
 import { ComparePage, CompareProvider } from "./compare";
 import { sectionAt, sections } from "./kinds";
 import { ProfilePage, RecoverPage, RegisterPage, SignInPage } from "./pages/Account";
+import { CreditsPage } from "./pages/Credits";
 import { DetailPage } from "./pages/Detail";
 import { DiscoverPage } from "./pages/Discover";
 import { HomePage } from "./pages/Home";
@@ -80,7 +81,7 @@ function Footer() {
         <p style={{ margin: 0 }}><strong style={{ color: "var(--ink)" }}>sarawak.</strong> · Sarawak Tourism Information System</p>
         <p className="small" style={{ margin: 0 }}>An independent student project. Not affiliated with Sarawak Tourism Board. Check details with official providers before you travel.</p>
       </div>
-      <p className="small" style={{ margin: 0 }}>Official tourism information: <a href="https://www.sarawaktourism.com/" target="_blank" rel="noopener noreferrer">sarawaktourism.com<span className="sr-only"> (opens an external site)</span></a></p>
+      <p className="small" style={{ margin: 0 }}><Link to="/credits">Image credits</Link> · Official tourism information: <a href="https://www.sarawaktourism.com/" target="_blank" rel="noopener noreferrer">sarawaktourism.com<span className="sr-only"> (opens an external site)</span></a></p>
     </div>
   </footer>;
 }
@@ -128,6 +129,7 @@ function Routes({ path, hash }: { path: string; hash: string }): ReactNode {
   if (match("/account/register", path)) return <RegisterPage />;
   if (match("/account/recover", path)) return <RecoverPage />;
   if (match("/staff", path)) return <StaffPage />;
+  if (match("/credits", path)) return <CreditsPage />;
   return <NotFound />;
 }
 

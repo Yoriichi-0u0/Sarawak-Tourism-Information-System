@@ -95,6 +95,7 @@ export const schema = {
     { key: "schedule", label: "Schedule", type: "text" },
     select("scheduleStatus", "Schedule status"),
     { key: "duration", label: "Typical journey time", type: "text" },
+    { key: "image", label: "Photo", type: "image" },
     { key: "provider", label: "Operator or booking URL", type: "url" },
   ],
   dining: [
@@ -116,6 +117,7 @@ export const schema = {
     { key: "summary", label: "Summary", type: "longtext" },
     { key: "details", label: "Details", type: "longtext" },
     { key: "authority", label: "Issuing authority", type: "text" },
+    { key: "image", label: "Photo", type: "image" },
     { key: "provider", label: "Authority link", type: "url" },
   ],
 } as const satisfies Record<string, readonly FieldSpec[]>;

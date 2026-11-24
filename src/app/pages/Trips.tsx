@@ -12,7 +12,7 @@ import { detailPath, sectionFor, sections } from "../kinds";
 import { Link, navigate } from "../router";
 import { useSession } from "../session";
 import { daysOf, guestPath, readShareHash, sharePath, useTrips, type GuestLink } from "../trips";
-import { Empty, formatDay, kindLabel, Loading, Notice, today, useTitle } from "../ui";
+import { Empty, formatDay, kindTitle, Loading, Notice, today, useTitle } from "../ui";
 
 function NewTripForm({ onCreated }: { onCreated: (plan: ReviewedPlan, guest?: string) => void }) {
   const [error, setError] = useState("");
@@ -199,7 +199,7 @@ export function TripPage({ id, guest }: { id: string; guest?: GuestLink }) {
               return <article className="stop" key={entry.id} data-conflict={conflicts.length > 0} aria-labelledby={`stop-${entry.id}`}>
                 <div className="stop-time">{entry.start ? <>{entry.start}<small>to {entry.end}</small></> : <small>Any time</small>}</div>
                 <div>
-                  <p className="small muted" style={{ margin: 0, display: "flex", gap: 6, alignItems: "center" }}><Icon size={14} aria-hidden="true" />{kindLabel(entry.kind)}</p>
+                  <p className="small muted" style={{ margin: 0, display: "flex", gap: 6, alignItems: "center" }}><Icon size={14} aria-hidden="true" />{kindTitle(entry.kind)}</p>
                   <h3 id={`stop-${entry.id}`}>{entry.notice === "unavailable" ? entry.title : <Link to={detailPath(entry.kind, entry.recordId)}>{entry.title}</Link>}</h3>
                   {entry.location && <p className="meta" style={{ margin: 0 }}><span><MapPin size={14} aria-hidden="true" />{entry.location}</span></p>}
                   <div className="tags" style={{ marginTop: 6 }}>
@@ -342,7 +342,7 @@ export function SharedTripPage({ hash }: { hash: string }) {
             return <article className="stop" key={entry.id} data-conflict={conflicts.length > 0} aria-labelledby={`stop-${entry.id}`}>
               <div className="stop-time">{entry.start ? <>{entry.start}<small>to {entry.end}</small></> : <small>Any time</small>}</div>
               <div>
-                <p className="small muted" style={{ margin: 0, display: "flex", gap: 6, alignItems: "center" }}><Icon size={14} aria-hidden="true" />{kindLabel(entry.kind)}</p>
+                <p className="small muted" style={{ margin: 0, display: "flex", gap: 6, alignItems: "center" }}><Icon size={14} aria-hidden="true" />{kindTitle(entry.kind)}</p>
                 <h3 id={`stop-${entry.id}`}>{entry.notice === "unavailable" ? entry.title : <Link to={detailPath(entry.kind, entry.recordId)}>{entry.title}</Link>}</h3>
                 {entry.location && <p className="meta" style={{ margin: 0 }}><span><MapPin size={14} aria-hidden="true" />{entry.location}</span></p>}
                 <div className="tags" style={{ marginTop: 6 }}>
