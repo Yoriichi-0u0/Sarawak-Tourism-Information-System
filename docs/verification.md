@@ -47,6 +47,10 @@ The public deployment repeated all **28 responsive checks** at 1440, 768, 390 an
 
 The [desktop](screenshots/desktop.png), [mobile](screenshots/mobile.png), and [mobile management](screenshots/management-mobile.png) previews were visually inspected. The design concept and native-size comparisons were also inspected. All temporary browser viewport overrides were reset; the public site is kept as the user-facing output.
 
+## 23 November 2026 app icon v2
+
+At the user's request a new app icon was generated: a minimal rhinoceros hornbill head with its upturned casque and a small sun disc, in cream and soft gold on rainforest green, without text. The 1254 px source is `design-assets/branding/sarawak-icon-v2-original.png`; `public/icons/sarawak-icon-v2-{32,180,256,512}.png` serve the favicon, Apple touch icon, header marks and web manifest. The earlier `hornbill-*` files are kept but no longer referenced. The screenshots in `docs/screenshots/` predate this change.
+
 ## 11 November 2026 icon and workspace update
 
 The user-supplied hornbill artwork replaced the original compass brand mark and favicon. The full-resolution source is retained under `design-assets/branding`; 256 px and 512 px variants are served from `public/icons` and listed in the web manifest. Updated desktop and mobile preview images were captured from the local build after the change. At 1440×1080 and 390×844, the header icon decoded at its 256 px native size, both icon URLs returned HTTP 200, the favicon and Apple touch links pointed to the new icon, the manifest listed both sizes, and neither viewport overflowed horizontally. Browser verification recorded zero console errors or warnings.

@@ -8,3 +8,7 @@ dist/
 test-results/
 .playwright-cli/
 .vercel
+
+.as03-data/
+dist-as03/
+.stis-data/

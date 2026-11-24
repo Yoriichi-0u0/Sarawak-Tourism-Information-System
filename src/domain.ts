@@ -1,4 +1,4 @@
-import type { Listing } from "./data";
+import type { Listing } from "./data.ts";
 export type TripItem = { id: string; day: number; note: string };
 export type Trip = {
   name: string;
