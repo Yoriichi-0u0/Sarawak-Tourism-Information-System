@@ -12,5 +12,5 @@ Each milestone ends with tests, a build, a commit, a push (CI and Vercel preview
 | M5 | Discovery | T1–T5 and T7 on one discovery pattern: filters, results, detail pages, compare, referral handoff, empty and incomplete states | Browser tests per task, desktop and mobile | Done |
 | M6 | Itinerary lifecycle | Trips dashboard, multi-day plans, timeline, conflicts, notices, add from any discovery page, notes, export (.ics, print), share | End-to-end journey test: register → plan → reopen → modify | Done |
 | M7 | Staff console | Dashboard, record list and filters, editor for six categories, history and audit, staff account administration | Staff E2E and permission tests | Done |
-| M8 | Hosted environment | Schema on Supabase, Vercel preview env, seeded catalogue, smoke and E2E against the preview | Preview URL verified; advisors clean | Next |
-| M9 | System verification | All eight tasks individually and together; security, accessibility, performance and responsive review; fixes | Verification report; remaining limitations | Planned |
+| M8 | Hosted environment | Schema on Supabase, Vercel preview env, seeded catalogue, smoke and E2E against the preview | Preview URL verified; advisors clean | Done |
+| M9 | System verification | All eight tasks individually and together; security, accessibility, performance and responsive review; fixes | Verification report; remaining limitations | Done (limitations in `verification.md`) |

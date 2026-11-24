@@ -1,5 +1,5 @@
-import { useEffect, useMemo, useState, type FormEvent } from "react";
-import { CalendarDays, MapPin, SearchX, Tag, Wallet } from "lucide-react";
+import { useId, useEffect, useMemo, useState, type FormEvent } from "react";
+import { CalendarDays, MapPin, SearchX, SlidersHorizontal, Tag, Wallet } from "lucide-react";
 
 import { api, errorMessage } from "../../lib/api";
 import { options, type Option } from "../../shared/catalogue";
@@ -53,6 +53,9 @@ export function DiscoverPage({ kind }: { kind: RecordKind }) {
   const [error, setError] = useState("");
   const [busy, setBusy] = useState(true);
   const definitions = filters[kind] ?? [query];
+  const collapsible = definitions.length > 3;
+  const [filtersOpen, setFiltersOpen] = useState(false);
+  const filterId = useId();
   useTitle(section.label);
 
   useEffect(() => {
@@ -75,6 +78,7 @@ export function DiscoverPage({ kind }: { kind: RecordKind }) {
       const value = definition.type === "tags" ? form.getAll(definition.key).join(",") : String(form.get(definition.key) ?? "").trim();
       if (value) next.set(definition.key, value);
     }
+    setFiltersOpen(false);
     navigate(`${section.path}${next.size ? `?${next}` : ""}`);
   }
 
@@ -84,7 +88,11 @@ export function DiscoverPage({ kind }: { kind: RecordKind }) {
       <h1>{kind === "accommodation" ? "Find a place to stay" : kind === "dining" ? "Find food you'll love" : kind === "event" ? "Find events" : "Explore destinations"}</h1>
       <p className="muted">{section.blurb}. Every listing shows where its information comes from.</p></div>
     <div className="discover">
-      <form className="panel filters" onSubmit={submit} aria-label={`Filter ${section.plural}`} key={params}>
+      <div className="filter-column">
+      {collapsible && <button type="button" className="button secondary filter-toggle" aria-expanded={filtersOpen} aria-controls={filterId}
+        onClick={() => setFiltersOpen(!filtersOpen)}><SlidersHorizontal size={16} aria-hidden="true" />{filtersOpen ? "Hide filters" : "Show filters"}
+        {active.length > 0 && <span className="badge neutral">{active.length} active</span>}</button>}
+      <form id={filterId} className="panel filters" data-collapsible={collapsible} data-open={filtersOpen} onSubmit={submit} aria-label={`Filter ${section.plural}`} key={params}>
         {definitions.map((definition) => {
           const current = new URLSearchParams(params).get(definition.key) ?? "";
           if (definition.type === "tags") return <fieldset key={definition.key}><legend>{definition.label}</legend>
@@ -100,6 +108,7 @@ export function DiscoverPage({ kind }: { kind: RecordKind }) {
         <div className="filter-actions"><button className="button primary">Search</button>
           {active.length > 0 && <button type="button" className="button ghost" onClick={() => navigate(section.path)}>Clear</button>}</div>
       </form>
+      </div>
       <div>
         <div className="results-bar">
           <p role="status" style={{ margin: 0 }}>{busy ? "Searching…" : items ? `${items.length} ${items.length === 1 ? section.singular : section.plural} found` : ""}</p>
@@ -110,6 +119,7 @@ export function DiscoverPage({ kind }: { kind: RecordKind }) {
           <p>Try fewer filters or a different spelling.</p>
           <button className="button secondary" onClick={() => navigate(section.path)}>Clear all filters</button>
         </Empty>}
+        {items && items.length > 0 && <h2 className="sr-only">Results</h2>}
         <div className="grid">{items?.map((item) => <ResultCard key={item.id} item={item} />)}</div>
         <CompareTray kind={kind} />
       </div>

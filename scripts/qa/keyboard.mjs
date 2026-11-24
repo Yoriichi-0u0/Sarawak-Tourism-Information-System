@@ -38,6 +38,12 @@ await page.waitForTimeout(200);
 ok("Escape closes the dialog and focus returns", !(await page.getByRole("dialog").count()) && (await active(page)).text?.includes("Add to trip"), JSON.stringify(await active(page)));
 page = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
 await page.goto(`${base}/`, { waitUntil: "networkidle" });
+const hero = await page.evaluate(() => {
+  const note = document.querySelector(".image-note").getBoundingClientRect(), form = document.querySelector(".hero-search").getBoundingClientRect();
+  const button = document.querySelector(".hero-search button"), box = button.getBoundingClientRect();
+  return { gap: Math.round(note.top - form.bottom), reachable: button.contains(document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2)) };
+});
+ok("hero photo credit does not cover the search form at 390 px", hero.gap >= 0 && hero.reachable, JSON.stringify(hero));
 const menu = page.getByRole("button", { name: "Open menu" });
 await menu.focus(); await page.keyboard.press("Enter");
 ok("mobile menu opens from the keyboard", (await page.getByRole("button", { name: "Close menu" }).getAttribute("aria-expanded")) === "true");

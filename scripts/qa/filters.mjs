@@ -2,8 +2,9 @@ import { chromium } from "playwright-core";
 const base = process.env.STIS_QA_BASE ?? "http://127.0.0.1:4173";
 const browser = await chromium.launch(process.env.STIS_QA_BROWSER ? { executablePath: process.env.STIS_QA_BROWSER } : {});
 const page = await (await browser.newContext({ viewport: { width: 1366, height: 900 } })).newPage();
+if (process.env.STIS_QA_SHARE) await page.goto(process.env.STIS_QA_SHARE, { waitUntil: "load" });
 const out = []; const ok = (n, c, d = "") => out.push(`${c ? "PASS" : "FAIL"} ${n}${d ? ` — ${d}` : ""}`);
-const api = async (path) => (await (await fetch(`${base}/api/v1/${path}`)).json());
+const api = async (path) => page.evaluate(async (url) => (await fetch(url)).json(), `/api/v1/${path}`);
 const results = async () => { await page.waitForFunction(() => !/Searching/.test(document.querySelector("main [role=status]")?.textContent ?? "")); await page.waitForTimeout(200);
   return { status: (await page.locator("main [role=status]").first().textContent())?.trim(), titles: await page.locator(".card h3").allTextContents() }; };
 const form = (kind) => page.getByRole("form", { name: `Filter ${kind}` });
@@ -58,5 +59,20 @@ ok("T7 visitor info lists categories with authority sources", /Emergency/.test(v
 
 await page.goto(base + "/destinations/does-not-exist", { waitUntil: "networkidle" });
 ok("Unavailable record shows an explicit state", (await page.locator("h1").textContent())?.includes("unavailable"), await page.locator("h1").textContent());
+const phone = await (await browser.newContext({ viewport: { width: 390, height: 844 } })).newPage();
+if (process.env.STIS_QA_SHARE) await phone.goto(process.env.STIS_QA_SHARE, { waitUntil: "load" });
+await phone.goto(base + "/stay", { waitUntil: "networkidle" });
+await phone.locator(".card").first().waitFor();
+const firstCard = await phone.locator(".card").first().evaluate((el) => Math.round(el.getBoundingClientRect().top));
+ok("Mobile: results start within the first screen while filters are collapsed", firstCard < 844, `first card at ${firstCard}px`);
+const toggle = phone.getByRole("button", { name: /Show filters/ });
+await toggle.click();
+await phone.getByRole("form", { name: "Filter places to stay" }).getByLabel("Lift").check();
+await phone.getByRole("form", { name: "Filter places to stay" }).getByRole("button", { name: "Search" }).click();
+await phone.waitForURL(/accessibility=lift/);
+await phone.waitForFunction(() => !/Searching/.test(document.querySelector("main [role=status]")?.textContent ?? ""));
+const after = { expanded: await phone.getByRole("button", { name: /filters/ }).getAttribute("aria-expanded"), label: (await phone.getByRole("button", { name: /filters/ }).innerText()).replace(/\s+/g, " "),
+  formVisible: await phone.getByRole("form", { name: "Filter places to stay" }).isVisible() };
+ok("Mobile: searching collapses the filters and shows how many are active", after.expanded === "false" && !after.formVisible && /1 active/.test(after.label), JSON.stringify(after));
 console.log(out.join("\n"));
 await browser.close();

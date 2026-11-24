@@ -8,9 +8,11 @@ const adminPassword = process.env.QA_ADMIN_PASSWORD, adminEmail = process.env.QA
 const browser = await chromium.launch(process.env.STIS_QA_BROWSER ? { executablePath: process.env.STIS_QA_BROWSER } : {});
 const results = []; let step = 0;
 const errors = [];
+const browserJson = (page, path) => page.evaluate(async (url) => { const reply = await fetch(url); return { ok: reply.ok, status: reply.status, body: reply.ok ? await reply.json() : null }; }, `/api/v1/${path}`);
 const newPage = async (scheme = "light") => {
   const ctx = await browser.newContext({ viewport: { width, height: 900 }, colorScheme: scheme, acceptDownloads: true });
   const page = await ctx.newPage();
+  if (process.env.STIS_QA_SHARE) await page.goto(process.env.STIS_QA_SHARE, { waitUntil: "load" });
   page.on("pageerror", (e) => errors.push(`pageerror ${e.message}`));
   page.on("console", (m) => { if (m.type() === "error" && !/409|422|401|403|404|400/.test(m.text())) errors.push(`console ${m.text()}`); });
   return page;
@@ -214,6 +216,7 @@ try {
   });
   await check(tourist, "T8 visitor information shows emergency guidance", async () => {
     await nav(tourist, "Visitor info");
+    await tourist.locator("main").getByText(/999/).first().waitFor();
     const text = await tourist.locator("main").innerText();
     if (!/999/.test(text)) throw new Error("no emergency number");
   });
@@ -236,7 +239,7 @@ try {
     await staff.getByRole("button", { name: "Publish", exact: true }).click();
     await staff.getByRole("alert").filter({ hasText: /title/i }).first().waitFor();
     if (await staff.locator("#field-title").getAttribute("aria-invalid") !== "true") throw new Error("title not marked invalid");
-    const pub = await (await fetch(`${base}/api/v1/catalog/event/demo-cultural-evening`)).json();
+    const pub = (await browserJson(staff, "catalog/event/demo-cultural-evening")).body;
     if (pub.fields.title !== "Evening of traditional music") throw new Error("blank title published");
     await staff.locator("#field-title").click();
     await staff.keyboard.type("Evening of traditional music", { delay: 15 });
@@ -251,7 +254,7 @@ try {
     await staff.locator("#field-status").selectOption("cancelled");
     await staff.getByRole("button", { name: "Save draft" }).click();
     await staff.waitForFunction(() => [...document.querySelectorAll("button")].some((b) => b.textContent === "Publish" && !b.disabled));
-    const before = await (await fetch(`${base}/api/v1/catalog/event/demo-cultural-evening`)).json();
+    const before = (await browserJson(staff, "catalog/event/demo-cultural-evening")).body;
     if (before.fields.status !== "scheduled") throw new Error("draft leaked to public");
     await staff.getByRole("button", { name: "Publish", exact: true }).click();
     await staff.waitForFunction(async () => (await (await fetch("/api/v1/catalog/event/demo-cultural-evening")).json()).fields.status === "cancelled");
@@ -269,7 +272,7 @@ try {
     await staff.getByRole("button", { name: "Confirm withdrawal" }).click();
     const text = await staff.getByRole("alert").filter({ hasText: "refer to this destination" }).innerText();
     if (!/Bako National Park lodging/.test(text)) throw new Error(text);
-    if (!(await fetch(`${base}/api/v1/catalog/destination/bako`)).ok) throw new Error("destination withdrawn anyway");
+    if (!(await browserJson(staff, "catalog/destination/bako")).ok) throw new Error("destination withdrawn anyway");
     return text.trim();
   });
   await check(staff, "Withdrawal keeps the itinerary entry but marks it unavailable", async () => {

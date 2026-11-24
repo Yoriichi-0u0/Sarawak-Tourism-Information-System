@@ -55,6 +55,7 @@ export function VisitorInfoPage() {
     {items?.length === 0 && <Empty icon={SearchX} title="Information unavailable">
       <p>STIS does not hold {category ? `${label("guidanceCategory", category).toLowerCase()} ` : ""}guidance{place ? ` for ${place}` : ""} yet. Check with the destination operator or the relevant authority.</p>
       <button className="button secondary" onClick={() => navigate("/visitor-info")}>Show all guidance</button></Empty>}
+    {items && items.length > 0 && <h2 className="sr-only">Guidance</h2>}
     <div className="grid">{items?.map((item) => <article className="card" key={item.id} aria-labelledby={`guidance-${item.id}`}>
       <div className="card-body">
         <div className="tags"><span className="badge gold">{label("guidanceCategory", item.fields.guidanceCategory)}</span>
