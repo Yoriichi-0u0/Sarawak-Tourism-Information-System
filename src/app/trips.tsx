@@ -28,6 +28,13 @@ export function readGuestHash(hash: string): GuestLink | undefined {
 
 export const guestPath = (link: GuestLink) => `/trips/guest#${link.id}/${link.token}`;
 
+/** A view-only link carries its capability token in the fragment, which browsers never send to servers. */
+export function readShareHash(hash: string): string | undefined {
+  return /^#([\w-]{43})$/.exec(hash)?.[1];
+}
+
+export const sharePath = (token: string) => `/trips/shared#${token}`;
+
 export function TripProvider({ children }: { children: ReactNode }) {
   const [guest, setGuest] = useState<GuestLink | undefined>(() => readGuestHash(window.location.hash));
   const [adding, setAdding] = useState<TourismItem>();

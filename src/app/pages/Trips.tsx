@@ -1,6 +1,7 @@
 import { useEffect, useState, type FormEvent } from "react";
 import {
-  AlertTriangle, ArrowDown, ArrowUp, CalendarDays, CalendarPlus, CalendarRange, Copy, Download, Luggage, MapPin, Pencil, Printer, Trash2, UserCheck,
+  AlertTriangle, ArrowDown, ArrowUp, CalendarDays, CalendarPlus, CalendarRange, Copy, Download, Eye, Link2, Link2Off, Luggage, MapPin, Pencil, Printer,
+  RefreshCw, Trash2, UserCheck,
 } from "lucide-react";
 
 import { api, download, errorMessage, RequestError } from "../../lib/api";
@@ -10,7 +11,7 @@ import type { PlanSummary, ReviewedPlan } from "../../shared/contracts";
 import { detailPath, sectionFor, sections } from "../kinds";
 import { Link, navigate } from "../router";
 import { useSession } from "../session";
-import { daysOf, guestPath, useTrips, type GuestLink } from "../trips";
+import { daysOf, guestPath, readShareHash, sharePath, useTrips, type GuestLink } from "../trips";
 import { Empty, formatDay, kindLabel, Loading, Notice, today, useTitle } from "../ui";
 
 function NewTripForm({ onCreated }: { onCreated: (plan: ReviewedPlan, guest?: string) => void }) {
@@ -241,6 +242,7 @@ export function TripPage({ id, guest }: { id: string; guest?: GuestLink }) {
           <label className="checkbox"><input type="checkbox" name="provisional" defaultChecked={plan.provisional} />Dates are provisional</label>
           <p className="small muted" style={{ margin: 0 }}>Moving the first day moves every stop with it.</p>
           <div><button className="button secondary small" disabled={busy}>Update dates</button></div></form>
+        <SharePanel id={id} guest={token} sharing={Boolean(plan.sharing)} onChange={(sharing) => setPlan({ ...plan, sharing })} />
         <div className="panel stack" style={{ gap: 8 }}>
           <h2 style={{ fontSize: 18, margin: 0 }}>Add more</h2>
           {sections.filter(({ kind }) => kind !== "visitor").map(({ path, label, icon: Icon }) => <Link key={path} to={path} className="row" style={{ gap: 8 }}><Icon size={16} aria-hidden="true" />{label}</Link>)}
@@ -251,6 +253,111 @@ export function TripPage({ id, guest }: { id: string; guest?: GuestLink }) {
               <div className="row"><button className="button danger small" disabled={busy} onClick={remove}>Delete trip</button><button className="button ghost small" onClick={() => setConfirmDelete(false)}>Keep it</button></div></>}
         </div>
       </aside>
+    </div>
+  </div>;
+}
+
+function SharePanel({ id, guest, sharing, onChange }: { id: string; guest?: string; sharing: boolean; onChange: (sharing: boolean) => void }) {
+  const [link, setLink] = useState("");
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
+  const [status, setStatus] = useState("");
+  async function create() {
+    setBusy(true); setError(""); setStatus("");
+    try {
+      const { token } = await api<{ token: string }>(`itineraries/${id}/share`, { method: "POST", guest, body: {} });
+      setLink(`${window.location.origin}${sharePath(token)}`); onChange(true);
+      setStatus(sharing ? "New link created. The previous link no longer works." : "View-only link created.");
+    } catch (cause) { setError(errorMessage(cause)); } finally { setBusy(false); }
+  }
+  async function stop() {
+    setBusy(true); setError(""); setStatus("");
+    try { await api(`itineraries/${id}/share`, { method: "DELETE", guest }); setLink(""); onChange(false); setStatus("Sharing stopped. The link no longer opens this trip."); }
+    catch (cause) { setError(errorMessage(cause)); } finally { setBusy(false); }
+  }
+  return <section className="panel stack" style={{ gap: 10 }} aria-labelledby="share-title">
+    <h2 id="share-title" style={{ fontSize: 18, margin: 0 }}><Eye size={18} aria-hidden="true" /> Share a view-only link</h2>
+    <p className="small muted" style={{ margin: 0 }}>People with the link can see the trip, including notes, but cannot change it. You can replace or stop the link at any time.</p>
+    {error && <Notice tone="error">{error}</Notice>}
+    {status && <p role="status" className="small" style={{ margin: 0 }}>{status}</p>}
+    {link && <div className="stack" style={{ gap: 6 }}>
+      <label className="field">View-only link<input type="text" readOnly value={link} onFocus={(event) => event.currentTarget.select()} /></label>
+      <button className="button secondary small" onClick={() => navigator.clipboard?.writeText(link).then(() => setStatus("Link copied."), () => setStatus("Select the link and copy it."))}>
+        <Copy size={14} aria-hidden="true" />Copy link</button>
+      <p className="small muted" style={{ margin: 0 }}>Save it now: for your security STIS stores only a fingerprint of the link and cannot show it again.</p>
+    </div>}
+    {!sharing ? <div><button className="button secondary small" disabled={busy} onClick={create}><Link2 size={14} aria-hidden="true" />Create view-only link</button></div>
+      : <div className="row">
+        {!link && <span className="badge ok">A view-only link is active</span>}
+        <button className="button secondary small" disabled={busy} onClick={create}><RefreshCw size={14} aria-hidden="true" />{link ? "Replace link" : "Get a new link"}</button>
+        <button className="button ghost small" disabled={busy} onClick={stop}><Link2Off size={14} aria-hidden="true" />Stop sharing</button>
+      </div>}
+  </section>;
+}
+
+export function SharedTripPage({ hash }: { hash: string }) {
+  const token = readShareHash(hash);
+  const [plan, setPlan] = useState<ReviewedPlan | null>();
+  const [error, setError] = useState("");
+  useTitle(plan ? `${plan.title} (shared)` : "Shared trip");
+  useEffect(() => {
+    if (!token) { setPlan(null); return; }
+    let live = true;
+    api<ReviewedPlan>("shared-itinerary", { share: token }).then((value) => live && setPlan(value))
+      .catch((cause) => { if (!live) return; if (cause instanceof RequestError && cause.status === 404) setPlan(null); else setError(errorMessage(cause)); });
+    return () => { live = false; };
+  }, [token]);
+  if (plan === undefined && !error) return <Loading text="Opening the shared trip…" />;
+  if (plan === null) return <Empty page icon={AlertTriangle} title="This shared trip is no longer available">
+    <p>The link may be incomplete, or the person who shared it replaced the link, stopped sharing or deleted the trip.</p>
+    <Link className="button primary" to="/trips">Plan your own trip</Link></Empty>;
+  if (!plan) return <Notice tone="error">{error}</Notice>;
+  const days = daysOf(plan);
+  const { pairs, partners } = conflictDetails(plan);
+  return <div className="stack">
+    <div className="spread">
+      <div><p className="eyebrow"><Eye size={16} aria-hidden="true" />Shared with you · view only</p>
+        <h1 style={{ margin: 0 }}>{plan.title}</h1>
+        <p className="meta"><span><CalendarDays size={14} aria-hidden="true" />{formatDay(plan.date)}{plan.endDate !== plan.date ? ` – ${formatDay(plan.endDate)}` : ""}</span>
+          {plan.provisional && <span className="badge neutral">Provisional dates</span>}<span>{plan.entries.length} stop{plan.entries.length === 1 ? "" : "s"}</span></p></div>
+      <div className="row">
+        <button className="button secondary small" onClick={() => download("shared-itinerary/calendar", `sarawak-trip-${plan.date}.ics`, { share: token }).catch((cause) => setError(errorMessage(cause)))}>
+          <Download size={16} aria-hidden="true" />Calendar (.ics)</button>
+        <button className="button secondary small" onClick={() => window.print()}><Printer size={16} aria-hidden="true" />Print</button>
+      </div>
+    </div>
+    {error && <Notice tone="error">{error}</Notice>}
+    <Notice tone="info" title="You are viewing someone else's trip">It shows their latest saved plan and current published details. To plan your own, <Link to="/trips">start a trip</Link>.</Notice>
+    {pairs.length > 0 && <Notice tone="warn" title={`${pairs.length} time conflict${pairs.length === 1 ? "" : "s"} in this plan`}>
+      <ul>{pairs.map(({ first, second }) => <li key={`${first.id}-${second.id}`}><strong>{first.title}</strong> ({first.interval}) overlaps <strong>{second.title}</strong> ({second.interval}).</li>)}</ul></Notice>}
+    <div>
+      {days.map((day, index) => {
+        const stops = plan.entries.filter((entry) => entry.day === day);
+        return <section className="day" key={day} aria-labelledby={`day-${day}`}>
+          <div className="day-head"><h2 id={`day-${day}`}>Day {index + 1}</h2><span className="muted">{formatDay(day)}</span></div>
+          {!stops.length && <p className="muted">Nothing planned for this day.</p>}
+          {stops.map((entry) => {
+            const Icon = sectionFor(entry.kind).icon;
+            const conflicts = partners.get(entry.id) ?? [];
+            return <article className="stop" key={entry.id} data-conflict={conflicts.length > 0} aria-labelledby={`stop-${entry.id}`}>
+              <div className="stop-time">{entry.start ? <>{entry.start}<small>to {entry.end}</small></> : <small>Any time</small>}</div>
+              <div>
+                <p className="small muted" style={{ margin: 0, display: "flex", gap: 6, alignItems: "center" }}><Icon size={14} aria-hidden="true" />{kindLabel(entry.kind)}</p>
+                <h3 id={`stop-${entry.id}`}>{entry.notice === "unavailable" ? entry.title : <Link to={detailPath(entry.kind, entry.recordId)}>{entry.title}</Link>}</h3>
+                {entry.location && <p className="meta" style={{ margin: 0 }}><span><MapPin size={14} aria-hidden="true" />{entry.location}</span></p>}
+                <div className="tags" style={{ marginTop: 6 }}>
+                  {entry.notice === "cancelled" && <span className="badge danger">Event cancelled</span>}
+                  {entry.notice === "postponed" && <span className="badge warn">Event postponed</span>}
+                  {entry.notice === "unavailable" && <span className="badge neutral">Current information unavailable</span>}
+                  {entry.dateNotice && <span className="badge warn"><AlertTriangle size={14} aria-hidden="true" />Published for {formatDay(entry.eventStartsAt!.slice(0, 10))}</span>}
+                  {conflicts.length > 0 && <span className="badge danger"><AlertTriangle size={14} aria-hidden="true" />Overlaps {conflicts.map(({ title, interval }) => `${title} (${interval})`).join(", ")}</span>}
+                </div>
+                {entry.note && <p className="small" style={{ margin: "6px 0 0" }}>Note: {entry.note}</p>}
+              </div>
+            </article>;
+          })}
+        </section>;
+      })}
     </div>
   </div>;
 }

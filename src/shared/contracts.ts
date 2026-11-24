@@ -38,6 +38,10 @@ export type Plan = PlanSettings & {
 };
 export type ReviewedPlan = Omit<Plan, "entries"> & {
   owned: boolean;
+  /** Editors only: whether a view-only link is active. */
+  sharing?: boolean;
+  /** Present on the view-only representation. */
+  readOnly?: true;
   entries: (Entry & { title: string; location?: string; notice?: Notice; eventStartsAt?: string; dateNotice?: DateNotice })[];
   conflicts: [string, string][];
 };

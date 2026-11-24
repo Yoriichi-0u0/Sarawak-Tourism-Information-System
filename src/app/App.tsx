@@ -10,7 +10,7 @@ import { DiscoverPage } from "./pages/Discover";
 import { HomePage } from "./pages/Home";
 import { StaffPage } from "./pages/Staff";
 import { TransportPage } from "./pages/Transport";
-import { TripPage, TripsPage } from "./pages/Trips";
+import { SharedTripPage, TripPage, TripsPage } from "./pages/Trips";
 import { VisitorInfoPage } from "./pages/VisitorInfo";
 import { Link, match, navigate, useLocation } from "./router";
 import { isStaff, SessionProvider, useSession } from "./session";
@@ -120,6 +120,7 @@ function Routes({ path, hash }: { path: string; hash: string }): ReactNode {
   if (compareSection) return <ComparePage kind={compareSection.kind} />;
   if (match("/trips", path)) return <TripsPage />;
   if (match("/trips/guest", path)) return <GuestTrip hash={hash} />;
+  if (match("/trips/shared", path)) return <SharedTripPage hash={hash} />;
   const trip = match("/trips/:id", path);
   if (trip) return <TripPage key={trip.id} id={trip.id} />;
   if (match("/account", path)) return <ProfilePage />;

@@ -174,6 +174,23 @@ try {
     await tourist.getByRole("heading", { level: 1, name: "QA Sarawak December" }).waitFor();
     await shot(tourist, "trip-saved");
   });
+  await check(tourist, "Share a view-only link; the viewer cannot edit; stopping sharing revokes it", async () => {
+    await tourist.getByRole("button", { name: "Create view-only link" }).click();
+    const link = await tourist.getByRole("textbox", { name: "View-only link" }).inputValue();
+    if (!/\/trips\/shared#[\w-]{43}$/.test(link)) throw new Error(`unexpected link ${link.replace(/[\w-]{43}$/, "<token>")}`);
+    const viewer = await newPage("dark");
+    await viewer.goto(link, { waitUntil: "networkidle" });
+    await viewer.getByRole("heading", { level: 1, name: "QA Sarawak December" }).waitFor();
+    const controls = await viewer.locator("main button", { hasText: /^(Edit|Remove|Rename|Update dates|Delete this trip)/ }).count();
+    if (controls) throw new Error(`viewer sees ${controls} edit controls`);
+    if (await viewer.locator(".stop").count() !== 2) throw new Error("viewer does not see the stops");
+    await shot(viewer, "trip-shared-view");
+    await tourist.getByRole("button", { name: "Stop sharing" }).click();
+    await tourist.getByText("Sharing stopped.").waitFor();
+    await viewer.reload({ waitUntil: "networkidle" });
+    await viewer.getByRole("heading", { level: 1, name: /no longer available/ }).waitFor();
+    await viewer.context().close();
+  });
   await check(tourist, "Compare two places to stay", async () => {
     await nav(tourist, "Stay");
     await tourist.locator(".card", { hasText: "Mulu park headquarters accommodation" }).waitFor();

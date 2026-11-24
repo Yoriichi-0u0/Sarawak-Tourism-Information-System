@@ -1,5 +1,6 @@
 import { isRecordKind } from "../src/shared/contracts.ts";
 import type { Account } from "../src/shared/contracts.ts";
+import { lifetimes } from "./accounts.ts";
 import { toCalendar } from "./calendar.ts";
 import { InputError, object } from "./domain.ts";
 import type { Application } from "./services.ts";
@@ -25,7 +26,7 @@ export function writeFailure(entry: FailureLog) {
 const fixedRoutes = new Set([
   "auth/session", "auth/register", "auth/login", "auth/logout", "auth/recover",
   "account", "account/password", "account/recovery-codes", "account/delete",
-  "staff/records", "admin/staff", "itineraries", "journeys", "places",
+  "staff/records", "admin/staff", "itineraries", "journeys", "places", "shared-itinerary", "shared-itinerary/calendar",
 ]);
 
 export function describeRoute(path: string): { route: string; recordId?: string } {
@@ -35,7 +36,7 @@ export function describeRoute(path: string): { route: string; recordId?: string 
   const record = /^staff\/records\/([\w-]{1,100})(\/publish|\/withdraw|\/history)?$/.exec(path);
   if (record) return { route: `${prefix}staff/records/:id${record[2] ?? ""}`, recordId: record[1] };
   if (/^admin\/staff\/[\w-]{1,100}$/.test(path)) return { route: `${prefix}admin/staff/:id` };
-  const plan = /^itineraries\/[\w-]{1,100}(\/claim|\/calendar)?$/.exec(path);
+  const plan = /^itineraries\/[\w-]{1,100}(\/claim|\/calendar|\/share)?$/.exec(path);
   if (plan) return { route: `${prefix}itineraries/:id${plan[1] ?? ""}` };
   return { route: `${prefix}:unmatched` };
 }
@@ -92,7 +93,19 @@ function readGuest(request: Request) {
   return request.headers.get("authorization")?.match(/^Guest ([\w-]{43})$/)?.[1] ?? "";
 }
 
-const maxAge = (account: Account) => account.role === "tourist" ? 14 * 24 * 3600 : 1800;
+function readShare(request: Request) {
+  return request.headers.get("authorization")?.match(/^Share ([\w-]{43})$/)?.[1] ?? "";
+}
+
+function calendar(plan: Parameters<typeof toCalendar>[0]) {
+  return new Response(toCalendar(plan), { status: 200, headers: {
+    "Content-Type": "text/calendar; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
+    "Content-Disposition": `attachment; filename="sarawak-trip-${plan.date}.ics"`,
+  } });
+}
+
+/** The browser keeps the cookie for the session's absolute lifetime; the server enforces idle expiry on every request. */
+const maxAge = (account: Account) => Math.floor(lifetimes[account.role].absolute / 1000);
 
 function cookie(token: string, age: number, secure: boolean) {
   return `${sessionCookie}=${token}; Path=/api/; Max-Age=${age}; HttpOnly; SameSite=Lax${secure ? "; Secure" : ""}`;
@@ -208,18 +221,16 @@ export function createHandler(app: Application, options: HandlerOptions = {}) {
       if (method === "GET" && path === "itineraries") return json(200, await app.coordinator.listItineraries(session));
       if (method === "POST" && path === "itineraries")
         return json(201, await app.coordinator.createItinerary(await readJson(request), session));
-      const itinerary = /^itineraries\/([\w-]{1,100})(\/claim|\/calendar)?$/.exec(path);
+      if (method === "GET" && path === "shared-itinerary") return json(200, await app.coordinator.viewSharedItinerary(readShare(request)));
+      if (method === "GET" && path === "shared-itinerary/calendar") return calendar(await app.coordinator.viewSharedItinerary(readShare(request)));
+      const itinerary = /^itineraries\/([\w-]{1,100})(\/claim|\/calendar|\/share)?$/.exec(path);
       if (itinerary) {
         const [, id, command] = itinerary;
         const claim = command === "/claim";
         const guest = readGuest(request);
-        if (method === "GET" && command === "/calendar") {
-          const plan = await app.coordinator.reviewItinerary(id, guest, session);
-          return new Response(toCalendar(plan), { status: 200, headers: {
-            "Content-Type": "text/calendar; charset=utf-8", "Cache-Control": "no-store", "X-Content-Type-Options": "nosniff",
-            "Content-Disposition": `attachment; filename="sarawak-trip-${plan.date}.ics"`,
-          } });
-        }
+        if (method === "GET" && command === "/calendar") return calendar(await app.coordinator.reviewItinerary(id, guest, session));
+        if (method === "POST" && command === "/share") { await readJson(request); return json(200, await app.coordinator.shareItinerary(id, guest, session)); }
+        if (method === "DELETE" && command === "/share") return json(200, await app.coordinator.stopSharingItinerary(id, guest, session));
         if (method === "POST" && claim) return json(200, await app.coordinator.claimItinerary(id, guest, session));
         if (method === "GET" && !command) return json(200, await app.coordinator.reviewItinerary(id, guest, session));
         if (method === "PUT" && !command) {

@@ -197,3 +197,44 @@ test("record history names the staff member for each change", async (t) => {
     ["publish:2:Administrator", "save:2:Administrator", "publish:1:null"]);
   assert.match(history[0].at, /^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}Z$/);
 });
+
+test("an editor can share a view-only link that never grants editing and can be replaced or revoked", async (t) => {
+  const app = await open(t);
+  const { session } = await app.accounts.register(tourist);
+  const created = await app.coordinator.createItinerary({ date: "2026-12-01", provisional: false, title: "Shared weekend" }, session);
+  const planned = await app.coordinator.updateItinerary(created.plan.id, "", 1, { action: "add", recordId: "bako", start: "09:00", end: "11:00", note: "Bring water" }, session);
+  assert.equal(planned.sharing, false, "a new trip is not shared");
+  const { token } = await app.coordinator.shareItinerary(created.plan.id, "", session);
+  assert.match(token, /^[\w-]{43}$/);
+  assert.equal((await app.coordinator.reviewItinerary(created.plan.id, "", session)).sharing, true);
+  const view = await app.coordinator.viewSharedItinerary(token);
+  assert.equal(view.readOnly, true);
+  assert.equal(view.title, "Shared weekend");
+  assert.deepEqual(view.entries.map(({ recordId, note }) => `${recordId}:${note}`), ["bako:Bring water"]);
+  assert.equal("sharing" in view, false, "viewers do not learn sharing settings");
+  await assert.rejects(app.coordinator.updateItinerary(created.plan.id, token, view.revision, { action: "rename", title: "Hijacked" }), status(404), "the share token is not an edit token");
+  await assert.rejects(app.coordinator.deleteItinerary(created.plan.id, token), status(404));
+  await assert.rejects(app.coordinator.shareItinerary(created.plan.id, token), status(404), "viewers cannot mint links");
+  const intruder = (await app.accounts.register({ ...tourist, email: "nosy@example.test" })).session;
+  await assert.rejects(app.coordinator.shareItinerary(created.plan.id, "", intruder), status(404));
+  await assert.rejects(app.coordinator.stopSharingItinerary(created.plan.id, "", intruder), status(404));
+  const replaced = await app.coordinator.shareItinerary(created.plan.id, "", session);
+  assert.notEqual(replaced.token, token);
+  await assert.rejects(app.coordinator.viewSharedItinerary(token), status(404), "replacing a link revokes the old one");
+  assert.equal((await app.coordinator.viewSharedItinerary(replaced.token)).title, "Shared weekend");
+  const renamed = await app.coordinator.updateItinerary(created.plan.id, "", planned.revision, { action: "rename", title: "Shared long weekend" }, session);
+  assert.equal(renamed.revision, planned.revision + 1, "sharing does not change the plan revision");
+  assert.equal((await app.coordinator.viewSharedItinerary(replaced.token)).title, "Shared long weekend", "viewers see the latest saved plan");
+  await app.coordinator.stopSharingItinerary(created.plan.id, "", session);
+  await assert.rejects(app.coordinator.viewSharedItinerary(replaced.token), status(404), "stopping sharing revokes the link");
+  for (const bad of ["", "short", "A".repeat(43)]) await assert.rejects(app.coordinator.viewSharedItinerary(bad), status(404), bad);
+});
+
+test("guest editors can share too, and deleting a trip removes its shared view", async (t) => {
+  const app = await open(t);
+  const guestPlan = await app.coordinator.createItinerary({ date: "2026-11-27", provisional: true });
+  const { token } = await app.coordinator.shareItinerary(guestPlan.plan.id, guestPlan.guest!);
+  assert.equal((await app.coordinator.viewSharedItinerary(token)).owned, false);
+  await app.coordinator.deleteItinerary(guestPlan.plan.id, guestPlan.guest!);
+  await assert.rejects(app.coordinator.viewSharedItinerary(token), status(404));
+});

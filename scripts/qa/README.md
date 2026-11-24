@@ -13,7 +13,7 @@ node filters.mjs
 node keyboard.mjs
 ```
 
-- `journey.mjs`: 26 steps across T1, T3, T5–T8, accounts, guest claim, staff publication and withdrawal, permissions. Mutates data, so use a fresh profile per run.
+- `journey.mjs`: 27 steps across T1, T3, T5–T8, accounts, guest claim, view-only sharing, staff publication and withdrawal, permissions. Mutates data, so use a fresh profile per run.
 - `filters.mjs`: per-category filters, no-match and unavailable states (T1, T2, T4, T5, T7).
 - `keyboard.mjs`: skip link, theme radio group, dialog focus and Escape, mobile menu.
 

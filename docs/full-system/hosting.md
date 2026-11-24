@@ -29,12 +29,16 @@ Rollback SQL for each migration is in `supabase/rollback/`. CI tests up → down
 2. Update `DATABASE_URL` in Vercel (Preview, branch `codex/full-system`, type Sensitive) and in the local, git-ignored `.env.local`.
 3. Redeploy the preview.
 
-The first password passed through the Vercel connector as a plain tool argument during setup on 23 Nov 2026, so it appears in that working session's transcript. Rotate it before any real use.
+Rotation history: the first password passed through the Vercel connector as a plain tool argument during setup on 23 Nov 2026. It was rotated on 24 Nov 2026. `stis_api` changed its own password over the existing connection, with only the SCRAM verifier sent. The new value went to Vercel through `vercel env add … --sensitive --force` on stdin and to `.env.local` by script, without being printed. The old credential is rejected (`28P01`), and the redeployed preview reads the database with the new one.
 
 ## Provisioning
 
 `node --env-file=.env.local --import tsx scripts/provision.ts` seeds the catalogue if it is empty and creates the first administrator from `STIS_ADMIN_EMAIL`/`STIS_ADMIN_PASSWORD`. It never overwrites an existing account.
 
-## Known platform finding (not created by STIS)
+## Platform function hardening (resolved 24 Nov 2026)
 
-The Supabase security advisor reports `public.rls_auto_enable()`, a SECURITY DEFINER function executable by `anon` and `authenticated` through `/rest/v1/rpc`. It predates STIS and appears to be platform-provided. STIS does not use it. Revoke `EXECUTE` from `anon` and `authenticated` if it is not needed.
+The Supabase security advisor reported `public.rls_auto_enable()`, a SECURITY DEFINER event-trigger function, as executable by `anon` and `authenticated`. It predates STIS and backs the platform's `ensure_rls` event trigger. Because it returns `event_trigger`, a direct RPC call cannot run it, but the privilege is unnecessary. `EXECUTE` was revoked from `public`, `anon` and `authenticated` (Supabase migration `harden_rls_auto_enable_execute`). The trigger still enables RLS on new public tables, and the advisor reports no findings.
+
+## Hosted migration ledger
+
+Applied to `lblnltxpoaaqxbqrkoki` in order, each recorded in `stis.schema_migration`: `20261123120000_initial_schema`, `20261123120100_api_role_access`, `20261123120200_foreign_key_indexes`, `20261124090000_append_only_history`, `20261124100000_itinerary_share_links`.

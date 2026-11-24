@@ -141,7 +141,7 @@ test("the session cookie is HttpOnly, SameSite=Lax, API-scoped, Secure over HTTP
   const { reply, cookie } = await signIn();
   const header = reply.headers.getSetCookie()[0];
   assert.match(cookie, /^stis_session=[\w-]{43}$/);
-  for (const attribute of ["Path=/api/", "Max-Age=1800", "HttpOnly", "SameSite=Lax"])
+  for (const attribute of ["Path=/api/", "Max-Age=28800", "HttpOnly", "SameSite=Lax"])
     assert.ok(header.split("; ").includes(attribute), attribute);
   assert.doesNotMatch(header, /Domain=|Secure/i);
   const secure = await post("/api/v1/auth/login", { email: staffEmail, password }, {}, { base: "https://stis.example" });
@@ -152,6 +152,14 @@ test("the session cookie is HttpOnly, SameSite=Lax, API-scoped, Secure over HTTP
   assert.equal(out.headers.getSetCookie()[0], "stis_session=; Path=/api/; Max-Age=0; HttpOnly; SameSite=Lax");
   assert.deepEqual((await call({ path: "/api/v1/auth/session", headers: { cookie } })).body, { account: null });
   assert.equal((await call({ path: "/api/v1/staff/records", headers: { cookie } })).status, 401);
+});
+
+test("the browser keeps the cookie for the whole server session so idle expiry is enforced by the server, not cut short", async (t) => {
+  const { register, signIn } = await serve(t);
+  const staff = (await signIn()).reply.headers.getSetCookie()[0];
+  assert.ok(staff.split("; ").includes(`Max-Age=${8 * 3600}`), `staff cookie covers the 8-hour absolute limit: ${staff.replace(/=[\w-]{43}/, "=…")}`);
+  const tourist = (await register("cookie-life@example.test")).reply.headers.getSetCookie()[0];
+  assert.ok(tourist.split("; ").includes(`Max-Age=${30 * 24 * 3600}`), `tourist cookie covers the 30-day absolute limit: ${tourist.replace(/=[\w-]{43}/, "=…")}`);
 });
 
 test("staff routes reject missing and malformed sessions with 401 and tourist sessions with 403", async (t) => {
@@ -373,3 +381,30 @@ test("the calendar export needs the same access as the itinerary", async (t) => 
   assert.equal(reply.headers.get("content-disposition"), 'attachment; filename="sarawak-trip-2026-11-27.ics"');
   assert.match(reply.text, /^BEGIN:VCALENDAR\r\n/);
 });
+
+test("view-only trip links travel in an Authorization header, never in the logged route", async (t) => {
+  const { call, post, logs } = await serve(t);
+  const created = await post("/api/v1/itineraries", { date: "2026-11-27", provisional: true, title: "Header trip" });
+  const { plan, guest } = created.body as { plan: { id: string }; guest: string };
+  const editor = { authorization: `Guest ${guest}` };
+  const shared = await call({ method: "POST", path: `/api/v1/itineraries/${plan.id}/share`, headers: { ...editor, "content-type": "application/json" }, body: "{}" });
+  assert.equal(shared.status, 200, shared.text);
+  const token = shared.body.token as string;
+  const view = await call({ path: "/api/v1/shared-itinerary", headers: { authorization: `Share ${token}` } });
+  assert.equal(view.status, 200);
+  assert.equal(view.body.title, "Header trip");
+  assert.equal(view.body.readOnly, true);
+  const ics = await call({ path: "/api/v1/shared-itinerary/calendar", headers: { authorization: `Share ${token}` } });
+  assert.equal(ics.status, 200);
+  assert.match(ics.text, /BEGIN:VCALENDAR/);
+  assert.equal((await call({ path: "/api/v1/shared-itinerary", headers: { authorization: `Guest ${token}` } })).status, 404, "a share token is not a guest token");
+  assert.equal((await call({ path: "/api/v1/shared-itinerary" })).status, 404);
+  assert.equal((await call({ path: `/api/v1/itineraries/${plan.id}`, headers: { authorization: `Guest ${token}` } })).status, 404, "nor does it open the editable trip");
+  const stopped = await call({ method: "DELETE", path: `/api/v1/itineraries/${plan.id}/share`, headers: editor });
+  assert.equal(stopped.status, 200);
+  assert.equal((await call({ path: "/api/v1/shared-itinerary", headers: { authorization: `Share ${token}` } })).status, 404);
+  const routes = logs.map(({ route }) => route);
+  assert.ok(routes.includes("/api/v1/shared-itinerary"), routes.join());
+  assert.ok(logs.every((entry) => !JSON.stringify(entry).includes(token)), "the token is never logged");
+});
+

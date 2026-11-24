@@ -11,7 +11,7 @@ export type HashCost = { N: number; r: number; p: number };
 export const defaultHashCost: HashCost = { N: 32768, r: 8, p: 1 };
 
 const minute = 60_000;
-const lifetimes: Record<Role, { idle: number; absolute: number }> = {
+export const lifetimes: Record<Role, { idle: number; absolute: number }> = {
   tourist: { idle: 14 * 24 * 60 * minute, absolute: 30 * 24 * 60 * minute },
   staff: { idle: 30 * minute, absolute: 8 * 60 * minute },
   admin: { idle: 30 * minute, absolute: 8 * 60 * minute },

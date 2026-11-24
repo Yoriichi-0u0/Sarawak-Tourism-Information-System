@@ -515,7 +515,7 @@ test("itinerary storage keeps no copy of published event dates", async (t) => {
     .map(({ column_name }) => column_name);
   assert.deepEqual(await columns("itinerary_entry"), ["id", "itinerary_id", "record_id", "kind", "day", "start_time", "end_time", "note", "position"]);
   assert.deepEqual(await columns("itinerary"),
-    ["id", "owner_id", "guest_digest", "title", "start_date", "end_date", "provisional", "revision", "created_at", "updated_at"]);
+    ["id", "owner_id", "guest_digest", "title", "start_date", "end_date", "provisional", "revision", "created_at", "updated_at", "share_digest"]);
   const rows = await app.db.query("select * from stis.itinerary_entry where itinerary_id = $1", [plan.id]);
   assert.equal(rows.length, 2);
   assert.ok(!JSON.stringify(rows).includes("2026-12-05"), "no copy of the published event date");

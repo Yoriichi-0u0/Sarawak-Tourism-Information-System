@@ -85,11 +85,11 @@ export class ItineraryCoordinator {
     const plan: Plan = { id: randomUUID(), title: readTitle(body.title, "My Sarawak trip"), ...planSettings(body), revision: 1, entries: [] };
     if (account) {
       await this.repository.create(plan, { accountId: account.id });
-      return { plan: await this.review({ ...plan, owned: true }) };
+      return { plan: await this.review({ ...plan, owned: true, sharing: false }) };
     }
     const guest = newToken();
     await this.repository.create(plan, { guest });
-    return { plan: await this.review({ ...plan, owned: false }), guest };
+    return { plan: await this.review({ ...plan, owned: false, sharing: false }), guest };
   }
 
   async listItineraries(session?: string) {
@@ -139,6 +139,23 @@ export class ItineraryCoordinator {
     await this.repository.delete(id, await this.access(guest, session));
   }
 
+  /** Creates or replaces the view-only link. Only an editor (owner or guest-link holder) can do this. */
+  async shareItinerary(id: string, guest: string, session?: string) {
+    const token = newToken();
+    await this.repository.setShare(id, await this.access(guest, session), token);
+    return { token };
+  }
+
+  async stopSharingItinerary(id: string, guest: string, session?: string) {
+    await this.repository.setShare(id, await this.access(guest, session), null);
+    return { sharing: false };
+  }
+
+  async viewSharedItinerary(token: string): Promise<ReviewedPlan> {
+    const { sharing: _sharing, ...plan } = await this.review(await this.repository.loadShared(token));
+    return { ...plan, readOnly: true };
+  }
+
   async claimItinerary(id: string, guest: string, session?: string) {
     const account = await this.accounts.require(session);
     if (!guest) throw new InputError("Open the guest link for the itinerary you want to keep.", 400);
@@ -150,7 +167,7 @@ export class ItineraryCoordinator {
     return { accountId: account?.id, guest: guest || undefined };
   }
 
-  private async review(plan: Plan & { owned: boolean }): Promise<ReviewedPlan> {
+  private async review(plan: Plan & { owned: boolean; sharing?: boolean }): Promise<ReviewedPlan> {
     const records = new Map<string, TourismItem | undefined>();
     for (const { recordId } of plan.entries)
       if (!records.has(recordId)) records.set(recordId, await this.catalog.getPublishedRecord(recordId));

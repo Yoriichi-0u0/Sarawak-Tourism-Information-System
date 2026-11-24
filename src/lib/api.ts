@@ -6,10 +6,16 @@ export class RequestError extends Error {
   }
 }
 
-export async function api<T>(path: string, options: { method?: string; body?: unknown; guest?: string } = {}): Promise<T> {
+type Capability = { guest?: string; share?: string };
+const authorize = (headers: Headers, options: Capability) => {
+  if (options.guest) headers.set("Authorization", `Guest ${options.guest}`);
+  else if (options.share) headers.set("Authorization", `Share ${options.share}`);
+};
+
+export async function api<T>(path: string, options: { method?: string; body?: unknown } & Capability = {}): Promise<T> {
   const headers = new Headers();
   if (options.body !== undefined) headers.set("Content-Type", "application/json");
-  if (options.guest) headers.set("Authorization", `Guest ${options.guest}`);
+  authorize(headers, options);
   const response = await fetch(`/api/v1/${path}`, {
     method: options.method, headers, body: options.body === undefined ? undefined : JSON.stringify(options.body),
   });
@@ -25,9 +31,9 @@ export function errorMessage(error: unknown) {
 }
 
 /** Downloads a file response (such as an itinerary calendar) without exposing credentials in a URL. */
-export async function download(path: string, filename: string, options: { guest?: string } = {}) {
+export async function download(path: string, filename: string, options: Capability = {}) {
   const headers = new Headers();
-  if (options.guest) headers.set("Authorization", `Guest ${options.guest}`);
+  authorize(headers, options);
   const response = await fetch(`/api/v1/${path}`, { headers });
   if (!response.ok) {
     const payload = await response.json().catch(() => ({ message: "The file could not be downloaded." }));

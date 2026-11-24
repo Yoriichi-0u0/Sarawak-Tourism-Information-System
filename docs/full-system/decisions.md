@@ -18,6 +18,15 @@ All reads and writes go through our API, which enforces the AS02 domain rules. R
 ## ADR-006 — Provenance on every record
 Records state whether they are verified public facts, operator-supplied or illustrative. Prices, schedules and availability are never presented as live.
 
+## ADR-007 — View-only trip sharing as a revocable capability link
+An editor (account owner or guest-link holder) can create one view-only link per trip. The token travels in the URL fragment and an `Authorization: Share …` header, so it never reaches request logs. Only its SHA-256 digest is stored (`stis.itinerary.share_digest`). Replacing the link revokes the old one, and stopping sharing clears it. The link cannot edit, delete, claim or mint further links, and viewers do not see sharing settings. Sharing does not change the plan revision.
+
+## ADR-008 — The server alone enforces session idle expiry
+The cookie's `Max-Age` equals the session's absolute lifetime (staff and admin 8 h, tourists 30 days). The database row enforces the sliding idle limit (30 min, 14 days) on every request. Before this change the cookie expired 30 minutes after a staff sign-in even during active work (defect found in M9).
+
+## ADR-009 — Append-only publication history; hardened platform function
+`stis_api` may only INSERT into `tourism_record`, `record_version`, `version_destination` and `record_activity`, so a leaked API credential cannot rewrite who published what. Foreign-key `on delete set null` actions still run as the table owner. Separately, `EXECUTE` on the platform's `public.rls_auto_enable()` event-trigger function was revoked from `anon` and `authenticated`. The trigger still enables RLS on new public tables (probe verified), and the Supabase security advisor now reports no findings.
+
 ## Conflict register: GPT brief vs owner instructions vs this plan
 
 The owner asked for conflicts to be listed rather than silently resolved. The owner's direct instructions take precedence over the brief.

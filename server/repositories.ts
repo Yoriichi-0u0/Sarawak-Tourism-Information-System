@@ -142,11 +142,13 @@ export type PlanAccess = { accountId?: string; guest?: string };
 
 const uuid = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const unavailablePlan = () => new InputError("This itinerary access link is invalid or the itinerary was removed.", 404);
-type PlanRow = { id: string; title: string; date: string; end_date: string; provisional: boolean; revision: number; owner_id: string | null };
+type PlanRow = { id: string; title: string; date: string; end_date: string; provisional: boolean; revision: number; owner_id: string | null; sharing: boolean };
+export type StoredPlan = Plan & { owned: boolean; sharing: boolean };
 
 function accessParams(access: PlanAccess) {
   return [access.accountId ?? null, access.guest ? digest(access.guest) : null];
 }
+const planColumns = "id, title, start_date as date, end_date, provisional, revision, owner_id, share_digest is not null as sharing";
 const accessClause = "((owner_id is not null and owner_id = $2::uuid) or (guest_digest is not null and guest_digest = $3))";
 
 export class ItineraryRepository {
@@ -158,14 +160,33 @@ export class ItineraryRepository {
       "guest" in owner ? digest(owner.guest) : null, plan.title, plan.date, plan.endDate, plan.provisional, plan.revision]);
   }
 
-  async load(id: string, access: PlanAccess, db: Db = this.db): Promise<Plan & { owned: boolean }> {
+  async load(id: string, access: PlanAccess, db: Db = this.db): Promise<StoredPlan> {
     if (!uuid.test(id) || (!access.accountId && !access.guest)) throw unavailablePlan();
-    const [row] = await db.query<PlanRow>(`select id, title, start_date as date, end_date, provisional, revision, owner_id
-      from stis.itinerary where id = $1 and ${accessClause}`, [id, ...accessParams(access)]);
+    const [row] = await db.query<PlanRow>(`select ${planColumns} from stis.itinerary where id = $1 and ${accessClause}`, [id, ...accessParams(access)]);
+    return this.withEntries(row, db);
+  }
+
+  /** Loads the plan a view-only link points to. The token is a capability; only its digest is stored. */
+  async loadShared(token: string): Promise<StoredPlan> {
+    if (!/^[\w-]{43}$/.test(token)) throw unavailablePlan();
+    const [row] = await this.db.query<PlanRow>(`select ${planColumns} from stis.itinerary where share_digest = $1`, [digest(token)]);
+    return this.withEntries(row, this.db);
+  }
+
+  /** Sets (or with null, clears) the view-only link. Sharing is not plan content, so the revision is unchanged. */
+  async setShare(id: string, access: PlanAccess, token: string | null) {
+    if (!uuid.test(id) || (!access.accountId && !access.guest)) throw unavailablePlan();
+    const changed = await this.db.query(`update stis.itinerary set share_digest = $4 where id = $1 and ${accessClause} returning id`,
+      [id, ...accessParams(access), token === null ? null : digest(token)]);
+    if (!changed.length) throw unavailablePlan();
+  }
+
+  private async withEntries(row: PlanRow | undefined, db: Db): Promise<StoredPlan> {
     if (!row) throw unavailablePlan();
     const entries = await db.query<Plan["entries"][number]>(`select id, record_id as "recordId", kind, day, start_time as start, end_time as "end", note
-      from stis.itinerary_entry where itinerary_id = $1 order by position`, [id]);
-    return { id: row.id, title: row.title, date: row.date, endDate: row.end_date, provisional: row.provisional, revision: row.revision, entries, owned: row.owner_id !== null };
+      from stis.itinerary_entry where itinerary_id = $1 order by position`, [row.id]);
+    return { id: row.id, title: row.title, date: row.date, endDate: row.end_date, provisional: row.provisional, revision: row.revision, entries,
+      owned: row.owner_id !== null, sharing: row.sharing };
   }
 
   async save(plan: Plan, access: PlanAccess) {

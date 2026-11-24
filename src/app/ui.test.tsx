@@ -5,7 +5,7 @@ import { renderToStaticMarkup } from "react-dom/server";
 import type { TourismItem } from "../shared/contracts.ts";
 import { detailPath, sectionAt } from "./kinds.ts";
 import { match } from "./router.tsx";
-import { daysOf, guestPath, readGuestHash } from "./trips.tsx";
+import { daysOf, guestPath, readGuestHash, readShareHash, sharePath } from "./trips.tsx";
 import { formatDay, formatWhen, ProvenanceBadge, SourceNote, StatusBadge, subtitle } from "./ui.tsx";
 
 const item = (kind: TourismItem["kind"], fields: Record<string, string>): TourismItem => ({ id: "x", kind, version: 1, fields: { title: "Sample", ...fields } }) as TourismItem;
@@ -71,4 +71,12 @@ test("guest links are read only from a well-formed hash", () => {
 test("trip days span the inclusive range and stop at fourteen", () => {
   assert.deepEqual(daysOf({ date: "2026-12-30", endDate: "2027-01-01" }), ["2026-12-30", "2026-12-31", "2027-01-01"]);
   assert.equal(daysOf({ date: "2026-12-01", endDate: "2027-02-01" }).length, 14);
+});
+
+test("view-only links are read from the fragment only and are never mistaken for guest edit links", () => {
+  assert.equal(readShareHash(`#${token}`), token);
+  assert.equal(sharePath(token), `/trips/shared#${token}`);
+  assert.equal(readShareHash(`#plan-1/${token}`), undefined);
+  assert.equal(readGuestHash(`#${token}`), undefined);
+  assert.equal(readShareHash("#short"), undefined);
 });
