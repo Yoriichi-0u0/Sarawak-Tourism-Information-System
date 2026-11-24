@@ -58,7 +58,7 @@ test("discovery filters work for every category", async (t) => {
   assert.deepEqual(ids(await app.catalog.search("transportation", { mode: "flight" })), ["kuching-mulu-flight", "miri-mulu-flight"]);
   assert.deepEqual(ids(await app.catalog.search("event", { date: "2026-06-27" })), ["rwmf-2026"], "multi-day events match any day they run");
   assert.deepEqual(ids(await app.catalog.search("event", { from: "2026-12-01", to: "2026-12-31" })),
-    ["demo-cultural-evening", "demo-mangrove-walk", "demo-river-food-evening"]);
+    ["borneo-jazz-2026", "demo-cultural-evening", "demo-mangrove-walk", "demo-river-food-evening"]);
   const semenggoh = await app.catalog.search("visitor", { destination: "semenggoh" });
   assert.equal(semenggoh[0].fields.priority, "urgent", "urgent guidance comes first");
   assert.ok(semenggoh.some(({ id }) => id === "semenggoh-sightings") && semenggoh.some(({ id }) => id === "entry-requirements"));

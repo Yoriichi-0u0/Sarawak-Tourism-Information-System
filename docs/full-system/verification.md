@@ -78,12 +78,12 @@ Microsoft Edge uses the same Chromium engine and was used for manual review. Saf
 ## 6. Remaining limitations
 
 1. **Sarawak Tourism Board photos:** not used, because downloads need a member login. The owner can register and download chosen photos, and they can then be added with the credit and non-commercial conditions recorded.
-2. **Event content:** the only verified event (RWMF, June 2026) is now in the past, so the upcoming events are all labelled demonstrations. Real 2027 events should be researched before production.
+2. **Event content:** one real upcoming event has been added: Borneo Jazz Festival 2026 (4–5 Dec, Miri), reported by The Star. No 2027 dates for the Rainforest World Music Festival or Borneo Jazz had been announced on 24 Nov 2026. The other upcoming events are labelled demonstrations.
 3. **Images:** the four fictional stays share one AI illustration, and 9 records show category icons (for example Lepau Restaurant and most visitor guidance).
 4. **Production prerequisites (not done):**
    - a separate production database or Supabase project, since preview and production must not share data;
    - production environment variables and an admin bootstrap;
-   - a privacy and data notice page (PDPA): what is stored and for how long.
+   - a privacy and data notice page (PDPA): what is stored and for how long. **Done:** `/privacy`, linked from the footer and the registration page.
 5. **Accounts:** there is no admin-initiated staff password reset and no email recovery (recovery codes only, ADR-004).
 6. **Interest filter:** free text, not a controlled list.
 7. **Testing scope:** no physical-device, Safari.app or screen-reader (VoiceOver or NVDA) test. Accessibility evidence comes from automated axe and keyboard checks.
@@ -95,3 +95,13 @@ Microsoft Edge uses the same Chromium engine and was used for manual review. Saf
 **Preview: release candidate, ready for owner acceptance.** All eight SRS tasks, accounts, staff management and the full itinerary lifecycle pass in two browser engines, locally and on the hosted preview, with no open functional defects.
 
 **Production merge: not yet.** Keep PR #8 in draft until (a) the owner has reviewed the preview, (b) the production database and environment are decided and set up, (c) a privacy and data notice exists, and (d) real upcoming event content has been added.
+
+## 8. Release decision (24 Nov 2026)
+
+The owner approved production release. Before merging:
+- **Privacy notice:** added at `/privacy`.
+- **Real upcoming event:** added.
+- **Production database:** configured (ADR-011).
+- **Previews:** disconnected from live data.
+
+Production verification results are in section 9.

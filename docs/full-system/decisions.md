@@ -27,6 +27,9 @@ The cookie's `Max-Age` equals the session's absolute lifetime (staff and admin 8
 ## ADR-009 — Append-only publication history; hardened platform function
 `stis_api` may only INSERT into `tourism_record`, `record_version`, `version_destination` and `record_activity`, so a leaked API credential cannot rewrite who published what. Foreign-key `on delete set null` actions still run as the table owner. Separately, `EXECUTE` on the platform's `public.rls_auto_enable()` event-trigger function was revoked from `anon` and `authenticated`. The trigger still enables RLS on new public tables (probe verified), and the Supabase security advisor now reports no findings.
 
+## ADR-011 — Production topology
+The existing Supabase project, cleaned after QA (curated content and the owner's administrator only), becomes the production database. A second free project was not available through the tools in use, and a paid branch was not justified. Only Production receives `DATABASE_URL`, so preview deployments of unreviewed code cannot touch live data. The owner approved production release on 24 Nov 2026.
+
 ## Conflict register: GPT brief vs owner instructions vs this plan
 
 The owner asked for conflicts to be listed rather than silently resolved. The owner's direct instructions take precedence over the brief.

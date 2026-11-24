@@ -2,7 +2,7 @@
 
 A full-stack tourism information system for Sarawak: explore destinations, accommodation, transportation, dining, events and visitor information, then plan, save and revisit itineraries. Staff maintain the published information.
 
-> This is the **full-system** branch (`codex/full-system`). The SWE30003 AS03 assessment release is preserved separately on `codex/as03-system` (commit `644443f`); its README, local SQLite runtime and submission package are unchanged there.
+> This is the full system, live in production since 24 Nov 2026 (merged from `codex/full-system`, PR #8). The SWE30003 AS03 assessment release is preserved separately on `codex/as03-system` (commit `644443f`); its README, local SQLite runtime and submission package are unchanged there.
 
 ## Architecture in one paragraph
 

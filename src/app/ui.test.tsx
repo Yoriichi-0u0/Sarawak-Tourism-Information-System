@@ -80,3 +80,11 @@ test("view-only links are read from the fragment only and are never mistaken for
   assert.equal(readGuestHash(`#${token}`), undefined);
   assert.equal(readShareHash("#short"), undefined);
 });
+
+test("the privacy notice states what is stored, where, for how long, and how to delete it", async () => {
+  const { PrivacyPage } = await import("./pages/Privacy.tsx");
+  const text = renderToStaticMarkup(<PrivacyPage />).replace(/<[^>]+>/g, " ");
+  for (const fact of [/email address/i, /display name/i, /scrypt/i, /recovery codes/i, /trips/i, /guest/i, /Singapore/, /Supabase/, /Vercel/,
+    /no analytics/i, /Delete my account/, /Personal Data Protection Act 2010/, /stis-theme/])
+    assert.match(text, fact, String(fact));
+});

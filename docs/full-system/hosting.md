@@ -3,7 +3,9 @@
 ## Topology
 
 - **Vercel project** `sarawak-tourism-information-system` (team `chia-0u0-s-projects`, Hobby). Every push to `codex/full-system` builds a protected preview with `npm run build:vercel` (static client + one bundled Node function for `/api/*`, region `sin1`).
-- **Production** (`main`) still serves the earlier static prototype. It does not receive `DATABASE_URL` and is not changed by this branch.
+- **Production** (`main`) serves the full system from 24 Nov 2026 (PR #8). `DATABASE_URL` (Sensitive) is set for **Production only**. The Supabase project below is the production database.
+- **Previews** have **no** `DATABASE_URL`, so preview API calls return 503 ("hosted database not configured"). Unreviewed branches therefore cannot read or write live data. Test locally with PGlite or the local Postgres suite. For a hosted QA run, use a separate database; never point a preview at production.
+- **Rollback:** the last static-prototype deployment is `sarawak-tourism-information-system-d9kmd9242.vercel.app`. Run `vercel rollback <that URL>`, or revert the PR #8 merge on `main`. The database needs no rollback for the prototype, which does not use it.
 - **Supabase project** `lblnltxpoaaqxbqrkoki` (`ap-southeast-1`, Postgres 17). STIS tables live in schema `stis`, which the Supabase Data API does not expose. RLS is on everywhere, and only the `stis_api` role has a policy.
 
 ## Database role

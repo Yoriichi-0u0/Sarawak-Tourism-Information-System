@@ -89,7 +89,7 @@ export function RegisterPage() {
   if (codes) return <div style={{ maxWidth: 640, marginInline: "auto" }}><RecoveryCodes codes={codes} onDone={() => { setAccount(pending ?? null); navigate("/trips"); }} /></div>;
   return <div className="stack" style={{ maxWidth: 520, marginInline: "auto" }}>
     <div><p className="eyebrow"><UserRound size={16} aria-hidden="true" />Account</p><h1>Create an account</h1>
-      <p className="muted">An account keeps your trips across devices. STIS stores your email address, display name and trips, nothing else. You can delete your account at any time.</p></div>
+      <p className="muted">An account keeps your trips across devices. STIS stores your email address, display name and trips, nothing else. You can delete your account at any time. <Link to="/privacy">How STIS handles your data</Link></p></div>
     {error && <Notice tone="error" focus>{error}</Notice>}
     <form className="panel stack" onSubmit={submit} noValidate>
       <label className="field">Display name<input type="text" name="displayName" required maxLength={60} autoComplete="nickname" {...invalid(issues, "displayName")} />{fieldError(issues, "displayName")}</label>
