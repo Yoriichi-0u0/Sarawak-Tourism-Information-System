@@ -105,3 +105,20 @@ The owner approved production release. Before merging:
 - **Previews:** disconnected from live data.
 
 Production verification results are in section 9.
+
+## 9. Production verification (24 Nov 2026, after the PR #8 merge `8cdea87`)
+
+The production deployment (`d4bdota7d`) is served at `https://sarawak-tourism-information-system.vercel.app`, publicly with no login. The earlier alias `sarawak-tourism-prototype.vercel.app` redirects to it.
+
+| Check | Result |
+|---|---|
+| Public routes `/`, `/privacy`, `/trips/guest` and media | 200, with CSP, HSTS and `X-Frame-Options: DENY` |
+| API reaches the production database | 200; anonymous `staff/records` returns 401 |
+| Journey, Chromium 1366 px | 27/27, no console errors, no overflow |
+| Journey, Chromium 390 px | 27/27 once content was reset between runs. The first attempt stopped at step 20 because the 1366 run had left the event published as cancelled (test state, not a defect) |
+| Filters / keyboard | 13/13 / 13/13 |
+| Performance | LCP 92–536 ms on desktop and 208–868 ms on throttled mobile; API 75–165 ms |
+| Cleanup | Synthetic tourists and their trips deleted, synthetic staff disabled, curated content re-synced. One guest trip created during owner review was left untouched |
+| Environments | `DATABASE_URL` is set for Production only; the Preview variable was removed |
+
+Rollback: `vercel rollback sarawak-tourism-information-system-d9kmd9242.vercel.app` (the last static prototype), or revert `8cdea87`.
