@@ -735,3 +735,13 @@ test("an itinerary exports as an iCalendar file in Kuching time", async (t) => {
     assert.ok(ics.includes(line), line);
   assert.ok(ics.includes("Bring water\\nand a hat") && ics.includes("Travel dates are provisional."));
 });
+
+test("trip dates must be Gregorian calendar dates: no year zero, and leap days only in leap years", async (t) => {
+  const app = await open(t, { admin: false });
+  for (const [start, end] of [["0000-01-01", ""], ["0000-12-31", "0001-01-01"], ["2026-02-27", "2026-02-31"], ["2025-02-28", "2025-02-29"], ["2100-02-28", "2100-02-29"]])
+    await assert.rejects(app.coordinator.createItinerary({ date: start, endDate: end, provisional: true }), isInputError(400, /valid date|end date/), `${start}..${end}`);
+  for (const [start, end] of [["2028-02-28", "2028-02-29"], ["2000-02-29", ""], ["0001-01-01", "0001-01-02"]]) {
+    const created = await app.coordinator.createItinerary({ date: start, endDate: end, provisional: true });
+    assert.equal(created.plan.date, start);
+  }
+});

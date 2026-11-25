@@ -13,9 +13,18 @@ select * from (values
  (11, 'payloads are JSON objects', (select count(*) from stis.record_version where jsonb_typeof(payload) <> 'object')),
  (12, 'password hashes are scrypt', (select count(*) from stis.account where password_hash not like 'scrypt$%')),
  (13, 'active administrators (must be >= 1)', (select count(*) from stis.account where role = 'admin' and status = 'active')),
- (14, 'data meets proposed DB-04 patterns', (select count(*) from stis.itinerary where start_date !~ '^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$' or end_date !~ '^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$')
-     + (select count(*) from stis.itinerary_entry where day !~ '^\d{4}-(0[1-9]|1[0-2])-(0[1-9]|[12]\d|3[01])$' or not ((start_time = '' and end_time = '') or (start_time ~ '^([01]\d|2[0-3]):[0-5]\d$' and end_time ~ '^([01]\d|2[0-3]):[0-5]\d$')))),
- (15, 'trips <= 14 days and <= 50 stops', (select count(*) from stis.itinerary i where i.end_date::date - i.start_date::date + 1 > 14 or (select count(*) from stis.itinerary_entry e where e.itinerary_id = i.id) > 50)),
+ (14, 'trip dates are Gregorian calendar dates and stop times are HH:MM (proposed DB-04, revision 2)', (select count(*) from (
+       select start_date as d from stis.itinerary union all select end_date from stis.itinerary union all select day from stis.itinerary_entry) dates
+       where not case
+         when d !~ '^[0-9]{4}-(0[1-9]|1[0-2])-(0[1-9]|[12][0-9]|3[01])$' then false
+         when substr(d, 1, 4) = '0000' then false
+         else substr(d, 9, 2)::integer <= case substr(d, 6, 2)
+           when '02' then case when substr(d, 1, 4)::integer % 400 = 0 then 29 when substr(d, 1, 4)::integer % 100 = 0 then 28
+                               when substr(d, 1, 4)::integer % 4 = 0 then 29 else 28 end
+           when '04' then 30 when '06' then 30 when '09' then 30 when '11' then 30 else 31 end end)
+     + (select count(*) from stis.itinerary_entry where not ((start_time = '' and end_time = '')
+         or (start_time ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$' and end_time ~ '^([01][0-9]|2[0-3]):[0-5][0-9]$')))),
+ (15, 'trips <= 14 days and <= 50 stops', (select count(*) from stis.itinerary i where case when pg_input_is_valid(i.start_date, 'date') and pg_input_is_valid(i.end_date, 'date') then i.end_date::date - i.start_date::date + 1 > 14 else false end or (select count(*) from stis.itinerary_entry e where e.itinerary_id = i.id) > 50)),
  (16, 'payload destinationIds = version_destination rows', (with p as (select v.record_id, v.version, t.target from stis.record_version v cross join lateral unnest(string_to_array(coalesce(v.payload->>'destinationIds', ''), ',')) t(target) where t.target <> ''),
        l as (select record_id, version, destination_id as target from stis.version_destination)
        select (select count(*) from (select * from p except select * from l) a) + (select count(*) from (select * from l except select * from p) b))),

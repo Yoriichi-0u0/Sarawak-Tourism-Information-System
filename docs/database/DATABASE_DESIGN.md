@@ -89,7 +89,8 @@ Further decisions:
 * **Trip stops reference the record, not a version.** A postponed or cancelled event therefore shows its current published state in every
   saved trip (T5 "change after adding"); the planned day and times stay as the tourist chose them.
 * **Calendar dates are `text` (`YYYY-MM-DD`)** and times are `HH:MM` text. They are local Kuching calendar values with no time zone,
-  and the API contract exchanges them in that form. The weaker database pattern is finding DB-04.
+  and the API contract exchanges them in that form. The database currently checks only the shape (`YYYY-MM-DD`), which is finding
+  DB-04; the proposed revision 2 adds a Gregorian calendar check without changing the type.
 * **Secrets are stored only as digests.** Session, guest, share and recovery tokens are stored as SHA-256 digests; passwords as scrypt hashes. A
   database read never yields a usable credential.
 * **`auth_throttle` has no foreign key.** It counts attempts for e-mail addresses that may not be registered, and for client addresses.
@@ -197,6 +198,8 @@ are drawn. PNGs are rendered at 2× for print (A4 landscape or A3).
 
 ## 10. Proposed, not applied
 
-`supabase/proposed/20261125090000_integrity_hardening.sql` moves three application rules into the database (DB-02, DB-03, DB-04).
-It is additive, validated against the live data (0 rows rejected), and tested on PGlite and PostgreSQL 18.6. It awaits owner approval;
+`supabase/proposed/20261125090000_integrity_hardening.sql` (revision 2) moves three application rules into the database (DB-02, DB-03, DB-04).
+DB-04 adds one immutable helper function, `stis.is_calendar_date(text)`, executable only by `stis_api`. It would be the first function
+in `stis`, so the future-table checklist in §8 applies to it as well: explicit EXECUTE grants, and `SET search_path`.
+It is additive, validated against the live data (0 rows rejected), and tested on PGlite, PostgreSQL 17.12 and 18.6. It awaits owner approval;
 see `MIGRATION_REPORT.md` §5.

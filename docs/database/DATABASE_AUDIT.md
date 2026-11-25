@@ -5,6 +5,7 @@
 **Audit date:** 25 November 2026
 **Method:** read-only catalog and data queries against production, a clean rebuild of the migration history on a local PostgreSQL 18.6 server, source inspection, and the automated test suites
 **Production changes made by this audit:** none
+**Revised:** 25 November 2026, after independent review: proposed DB-04 corrected (revision 2), see §10.1
 
 > This document describes the PostgreSQL database of the full-system release. The AS03 assessment build uses Node.js and SQLite, and
 > its report and diagrams are a separate artefact. Nothing here describes or replaces the AS03 design.
@@ -20,7 +21,7 @@
 | Security | No exploitable defect found. RLS policies are `USING (true)` by design; isolation is enforced by the API, by grants and by schema exposure (§7) |
 | Supabase advisors | Security: 0 findings. Performance: 2 INFO notices about unused indexes, both intentional (§9) |
 | Findings | 0 Critical, 0 High, 1 Medium (residual design risk), 6 Low, 1 Info group (§10) |
-| **Readiness** | **Ready for production use.** No blocking defect. One optional, tested hardening migration awaits owner approval |
+| **Readiness** | **Ready for production use.** No blocking defect. One optional hardening migration (revision 2, corrected after independent review) is tested on PostgreSQL 17.12 and awaits owner approval |
 
 ## 2. Scope and evidence
 
@@ -358,7 +359,7 @@ run read-only on production, and every check passed.
 | 11 | Every `record_version.payload` is a JSON object | 0 |
 | 12 | Every `password_hash` uses the `scrypt$` format | 0 |
 | 13 | At least one active administrator exists | 1 active (pass) |
-| 14 | Existing data satisfies the proposed DB-04 date and time patterns | 0 |
+| 14 | Every trip date and stop day is a Gregorian calendar date, and every stop time is `HH:MM` or blank (proposed DB-04, revision 2) | 0 |
 | 15 | No itinerary is longer than 14 days or has more than 50 entries (application limits) | 0 |
 | 16 | Destination IDs in each version's payload equal its `version_destination` rows | 0 of 85 links differ in either direction |
 | 17 | Every published version has a `publish` activity | 0 |
@@ -484,16 +485,24 @@ Severity applies to the current production system. "Recommended" changes are not
 | DB-01 | **Medium** (residual design risk, not a defect) | RLS policies are `USING (true)`. They gate by role, not by row. Per-user isolation depends entirely on the API | §7.2; `20261123120100_api_role_access.sql` | Keep the design and document it (done). Keep the `stis_api` credential only in Vercel; rotate it on suspicion of exposure. Consider per-request identity policies only if direct database access is ever introduced | Documented |
 | DB-02 | Low | `version_destination.destination_id` references `tourism_record(id)` but not its kind. The database would accept a link to an event | Constraint list §3.8; the application checks the kind on save (`repositories.ts` l.73–76) and publish (l.93–96); invariant 4 = 0 | Proposed migration adds a generated `destination_kind` column and a composite FK to `(id, kind)` | Tested; awaiting approval |
 | DB-03 | Low | `record_activity.version` has no FK to `record_version`, so an entry could name a version that does not exist | §3.9; invariant 6 = 0 | Proposed migration adds FK `(record_id, version)` → `record_version` | Tested; awaiting approval |
-| DB-04 | Low | Dates and times are `text`. The CHECK regex `^\d{4}-\d{2}-\d{2}$` accepts `2026-13-00`, and `start_time`/`end_time` have no format check | §3.10–3.11; the API validates with `validDate` and `readInterval` (`domain.ts` l.21, 67); invariant 14 = 0 | Proposed CHECKs restrict months, days and `HH:MM`. Changing the column types to `date`/`time` would also change the API's data contract, so it is not proposed | Tested; awaiting approval |
-| DB-05 | Low | Expired `account_session` rows are purged only when that account next signs in (`accounts.ts` l.318). `auth_throttle` rows are never purged | Source; current volume 0 and 1 rows | Add a periodic cleanup (for example Supabase Cron calling a DELETE of expired rows, run by the owner) | Recommended |
-| DB-06 | Low (audit attribution) | Staff and administrators can delete their own accounts (`deleteAccount`, `accounts.ts` l.239, guards only the last administrator). `author_id` and `actor_id` then become null, and the staff history shows "content import" (`Staff.tsx` l.275), which is also the label for the genuine import | Source; FK `SET NULL` | Either disable self-deletion for staff (disable instead, which `status` already supports) or label null actors "former staff member" when not from the import | Recommended (application change) |
-| DB-07 | Low | scrypt N = 2^15 is below the OWASP Password Storage Cheat Sheet minimum (N = 2^17, r = 8, p = 1) | `accounts.ts` l.11 | Raise N to 2^17 and rehash on next sign-in; the stored hash records its parameters, so old hashes stay valid | Recommended (application change) |
+| DB-04 | Low | Dates and times are `text`. The CHECK regex `^\d{4}-\d{2}-\d{2}$` accepts `2026-13-00`, `2026-02-31` and `0000-01-01`, and `start_time`/`end_time` have no format check | §3.10–3.11; the API validates with `validDate` and `readInterval` (`domain.ts` l.21, 67); invariant 14 = 0 | Revision 2: CHECKs through `stis.is_calendar_date(text)`, a Gregorian calendar check (month-specific day limits, leap years, years 0001–9999), plus `HH:MM`. Storage stays `text`; changing the column types to `date`/`time` would change the API's data contract. Revision 1's regex was defective (§10.1) | Corrected; tested on PGlite and PostgreSQL 17.12 and 18.6; awaiting approval |
+| DB-05 | Low | Expired `account_session` rows are purged only when that account next signs in (`accounts.ts` l.318). `auth_throttle` rows are never purged | Source; current volume 0 and 1 rows | Add a periodic cleanup (for example Supabase Cron calling a DELETE of expired rows, run by the owner) | Separate improvement task |
+| DB-06 | Low (audit attribution) | Staff and administrators can delete their own accounts (`deleteAccount`, `accounts.ts` l.239, guards only the last administrator). `author_id` and `actor_id` then become null, and the staff history shows "content import" (`Staff.tsx` l.275), which is also the label for the genuine import | Source; FK `SET NULL` | Either disable self-deletion for staff (disable instead, which `status` already supports) or label null actors "former staff member" when not from the import | Separate improvement task (application change) |
+| DB-07 | Low | scrypt N = 2^15 is below the OWASP Password Storage Cheat Sheet minimum (N = 2^17, r = 8, p = 1) | `accounts.ts` l.11 | Raise N to 2^17 for new hashes and rehash on a successful sign-in. Before changing it: benchmark the cost on the Vercel function (latency and the `maxmem` limit at N = 2^17), keep verification backward-compatible (the stored `scrypt$N$r$p$…` format already lets old hashes verify with their own parameters), and keep the dummy hash for unknown e-mails at the same cost so timing does not reveal registered accounts | Separate improvement task (application change; needs benchmarking) |
 | DB-08 | Info | (a) Two "unused index" notices (§9). (b) `stis_api` has no connection limit. (c) `stis_api` has TEMP through PUBLIC. (d) There are no default privileges, so each new table needs explicit grants and a policy in its migration. (e) The comment in `20261123120000_initial_schema.sql` says "the API role is the table owner", but the owner is `postgres` | Catalog; source | (a) keep; (b) optionally set a limit matching the pooler; (c) harmless; (d) follow the checklist in `DATABASE_DESIGN.md` §8; (e) recorded here; applied migrations are not edited | Documented |
 
 No Critical or High finding was identified.
+
+### 10.1 Corrections register
+
+| ID | Date | Affects | What was wrong | Found by | Correction | Status |
+|---|---|---|---|---|---|---|
+| C-01 | 25 Nov 2026 | Proposed migration `20261125090000_integrity_hardening`, DB-04 (revision 1); not applied, so production was never affected | The date regex checked month and day ranges independently. It accepted `2026-02-31`, `2026-04-31`, `2025-02-29` and `0000-01-01`. Invariant 14 used the same weak pattern | Independent review of the audit package, confirmed by a read-only query on production | Revision 2: `stis.is_calendar_date(text)` (Gregorian rules), new CHECKs, `validDate` rejects year 0000, invariant 14 uses the Gregorian rule. Tests written first and seen failing (`MIGRATION_REPORT.md` §5.5) | Corrected and verified |
+| C-02 | 25 Nov 2026 | `MIGRATION_REPORT.md` §5 (revision 1 text) | It said `NOT VALID` + `VALIDATE` checks rows "under a weaker lock", and it understated the generated column. Inside the single migration transaction every lock is held until COMMIT, and the stored generated column rewrites `version_destination` under ACCESS EXCLUSIVE | Independent review | Locks and rewrite measured on PostgreSQL 17.12 and 18.6 and documented (`MIGRATION_REPORT.md` §5.4); `lock_timeout = 3s` added to the migration | Corrected and verified |
+| C-03 | 25 Nov 2026 | `scripts/database/invariants.sql` check 15 | It cast trip dates to `date`, so an impossible stored date would abort the whole check script instead of being counted by check 14 | Found while correcting C-01 | The cast is guarded by `pg_input_is_valid` | Corrected and verified |
 
 ## 11. Not verified
 
 * Supabase backup and point-in-time-recovery configuration was not exercised (no restore was performed against production).
 * Behaviour under heavy concurrent load was not load-tested. Concurrency correctness rests on the locking design and the targeted tests in §8.
-* The proposed migration was tested on PGlite and PostgreSQL 18.6, not on a Supabase branch (a branch incurs cost and was not needed for an additive change).
+* The proposed migration (revision 2) was tested on PGlite, on PostgreSQL 17.12 (production's major version; production runs 17.11) and on 18.6. It was not tested on a Supabase branch (a branch incurs cost) or on production.
