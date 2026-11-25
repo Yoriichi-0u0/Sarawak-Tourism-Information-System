@@ -31,7 +31,8 @@
 | Data access | `server/repositories.ts`, `server/accounts.ts`, `server/services.ts`, `server/catalog.ts` |
 | HTTP authorisation boundary | `server/http.ts` |
 | Catalog snapshot of the clean build (identical to production) | `docs/database/schema-snapshot.json` |
-| Fingerprint query used for drift detection | `MIGRATION_REPORT.md` §3 |
+| Fingerprint query used for drift detection | `scripts/database/fingerprint.sql` (also printed in `MIGRATION_REPORT.md` §3) |
+| Live-data invariant queries | `scripts/database/invariants.sql` |
 | Diagrams generated from the snapshot | `DATABASE_ERD.drawio` and its SVG/PNG exports |
 
 Production was examined only with `SELECT` statements on catalog views (`pg_class`, `pg_constraint`, `pg_index`, `pg_policy`,
@@ -339,7 +340,8 @@ There is **no schema drift**. One migration exists in the Supabase ledger outsid
 
 ## 5. Data-integrity checks on live data
 
-Each check is a query that counts violating rows. All returned 0.
+Each check is one query in `scripts/database/invariants.sql` that counts violating rows (check 13 counts active administrators). It was
+run read-only on production, and every check passed.
 
 | # | Invariant | Violations |
 |---:|---|---:|
@@ -359,8 +361,8 @@ Each check is a query that counts violating rows. All returned 0.
 | 14 | Existing data satisfies the proposed DB-04 date and time patterns | 0 |
 | 15 | No itinerary is longer than 14 days or has more than 50 entries (application limits) | 0 |
 | 16 | Destination IDs in each version's payload equal its `version_destination` rows | 0 of 85 links differ in either direction |
-| 17 | No destination link targets a non-destination record (repeat of 4 by join) | 0 |
-| 18 | No itinerary entry falls outside its trip (repeat of 9 by join) | 0 |
+| 17 | Every published version has a `publish` activity | 0 |
+| 18 | Each record's first activity is `create` | 0 |
 
 ## 6. Requirement-to-table traceability
 
