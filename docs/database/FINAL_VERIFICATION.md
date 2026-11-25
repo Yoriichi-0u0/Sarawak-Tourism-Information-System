@@ -31,7 +31,7 @@ The PostgreSQL suite creates and drops a throwaway database per test (`server/te
 | Migrations build a clean database | `migrate()` on an empty PostgreSQL 18.6 database (`stis_clean`) | 5 applied, 0 errors |
 | Every migration reverses cleanly | `db.test.ts`: up → down → up yields an identical catalog | pass (PGlite and PostgreSQL) |
 | Live schema = migration history | Fingerprint query on clean build and production (`MIGRATION_REPORT.md` §3), at the start and again at the end of the audit | 7/7 categories identical both times |
-| Live data satisfies the design | 18 invariant queries on production (`DATABASE_AUDIT.md` §5) | 0 violations |
+| Live data satisfies the design | `scripts/database/invariants.sql`, 18 checks, read-only on production (`DATABASE_AUDIT.md` §5) | 0 violations; 1 active administrator |
 | Append-only history | `db.test.ts` as `stis_api`: INSERT allowed, UPDATE and DELETE refused; FK `SET NULL` still works on account deletion | pass |
 | Atomic publication and rollback | `services.test.ts` "a database fault rolls back publication and the saved state reopens" | pass |
 | Stale updates | Draft save (`services.test.ts` l.228, 651) and itinerary revision (l.90) return 409 | pass |

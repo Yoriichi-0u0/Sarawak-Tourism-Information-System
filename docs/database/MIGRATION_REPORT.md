@@ -39,7 +39,7 @@ Migrations 1–3 were applied as SQL with ledger inserts and therefore do not ap
 
 ## 3. Drift check: production versus a clean build
 
-**Procedure.**
+**Procedure** (query file: `scripts/database/fingerprint.sql`).
 
 1. Start an empty PostgreSQL 18.6 server, create role `stis_api` (NOLOGIN) so the role-dependent migrations take effect, and
    create database `stis_clean`.

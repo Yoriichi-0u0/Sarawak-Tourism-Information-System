@@ -22,3 +22,10 @@ STIS_QA_BROWSER=<path to Chrome or Chromium> node scripts/database/render-erd.mj
 
 `render-erd.mjs` needs `playwright-core`, which is not a project dependency. Run it from a directory where that package is
 installed, passing the repository path as the argument.
+
+Re-check production at any time with two read-only queries:
+
+| Script | Purpose |
+|---|---|
+| `scripts/database/fingerprint.sql` | Schema fingerprint. Compare it with a clean `migrate()` build to detect drift |
+| `scripts/database/invariants.sql` | 18 live-data invariants; every value should be 0 except check 13 (active administrators, ≥ 1) |
