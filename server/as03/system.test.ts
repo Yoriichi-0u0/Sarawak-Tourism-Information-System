@@ -161,3 +161,141 @@ test("a database fault rolls back publication and the saved state reopens", (t) 
   assert.equal(reopened.entries[0].start, "10:00");
   assert.equal(reopened.entries[0].notice, "postponed");
 });
+
+const denied = (status: number) => (error: unknown) => error instanceof InputError && error.status === status;
+
+test("every restricted staff operation requires a current staff session", (t) => {
+  t.mock.timers.enable({ apis: ["Date"], now: Date.parse("2026-11-25T09:00:00Z") });
+  const app = new Application(":memory:", password);
+  t.after(() => app.close());
+  const staff = app.access.login(password);
+  const draft = app.manager.getDraft(staff, "sample-event");
+  const operations = (session: string | undefined) => [
+    () => app.manager.listDrafts(session),
+    () => app.manager.getDraft(session, draft.id),
+    () => app.manager.saveDraft(session, null, "event", draft.fields, null),
+    () => app.manager.saveDraft(session, draft.id, "event", { ...draft.fields, status: "cancelled" }, draft.version),
+    () => app.manager.publish(session, draft.id, draft.version),
+    () => app.manager.withdraw(session, draft.id),
+  ];
+
+  for (const session of [undefined, "forged-session-token"])
+    for (const operation of operations(session)) assert.throws(operation, denied(401));
+  assert.throws(() => app.access.login("incorrect-synthetic-value"), denied(401));
+
+  const signedOut = app.access.login(password);
+  app.access.logout(signedOut);
+  for (const operation of operations(signedOut)) assert.throws(operation, denied(401));
+
+  const expiring = app.access.login(password);
+  t.mock.timers.tick(30 * 60_000);
+  for (const operation of operations(expiring)) assert.throws(operation, denied(401));
+
+  assert.equal(app.catalog.getPublishedEvent(draft.id)?.fields.status, "scheduled");
+  assert.equal(app.catalog.getPublishedEvent(draft.id)?.version, draft.version);
+});
+
+test("category-specific publication rules reject each invalid draft and keep it unpublished", (t) => {
+  const app = new Application(":memory:", password);
+  t.after(() => app.close());
+  const staff = app.access.login(password);
+  const event = { title: "QA event", destinationIds: "waterfront", venue: "Hall", status: "scheduled", startsAt: "2026-12-01T10:00" };
+  const cases: [RecordKind, Record<string, string>, string][] = [
+    ["event", { ...event, status: "rescheduled" }, "status"],
+    ["event", { ...event, startsAt: "" }, "startsAt"],
+    ["event", { ...event, startsAt: "2026-02-30T10:00" }, "startsAt"],
+    ["event", { ...event, destinationIds: "" }, "destinationIds"],
+    ["event", { ...event, destinationIds: "waterfront,culture" }, "destinationIds"],
+    ["event", { ...event, provider: "http://example.org/" }, "provider"],
+    ["event", { ...event, provider: "https://user:secret@example.org/" }, "provider"],
+    ["accommodation", { title: "QA stay", accommodationType: "Inn", summary: "Stay", destinationIds: "waterfront,culture" }, "destinationIds"],
+    ["transportation", { title: "QA route", operator: "Operator", route: "Route", destinationIds: "" }, "destinationIds"],
+    ["dining", { title: "QA dining", cuisine: "Local", location: "Kuching", destinationIds: "" }, "destinationIds"],
+    ["visitor", { title: "QA guidance", guidanceCategory: "Safety", summary: "Guidance", area: "elsewhere" }, "area"],
+    ["visitor", { title: "QA guidance", guidanceCategory: "Safety", summary: "Guidance", area: "destination" }, "destinationIds"],
+    ["destination", { title: "QA place", location: "Miri", interest: "Nature", summary: "" }, "summary"],
+  ];
+
+  for (const [kind, fields, field] of cases) {
+    const draft = app.manager.saveDraft(staff, null, kind, fields, null);
+    assert.throws(
+      () => app.manager.publish(staff, draft.id, draft.version),
+      (error) => error instanceof InputError && error.status === 422 && Boolean(error.issues?.[field]),
+      `${kind} should reject ${field}`,
+    );
+    assert.equal(app.catalog.getPublishedRecord(draft.id), undefined);
+    assert.equal(app.manager.getDraft(staff, draft.id).publishedVersion, null);
+  }
+
+  const postponed = app.manager.saveDraft(staff, null, "event", { ...event, status: "postponed", startsAt: "" }, null);
+  app.manager.publish(staff, postponed.id, postponed.version);
+  assert.equal(app.catalog.getPublishedEvent(postponed.id)?.fields.status, "postponed");
+});
+
+test("stale or reclassified revisions leave the saved draft and published version unchanged", (t) => {
+  const app = new Application(":memory:", password);
+  t.after(() => app.close());
+  const staff = app.access.login(password);
+  const original = app.manager.getDraft(staff, "waterfront");
+  const revised = app.manager.saveDraft(staff, original.id, "destination", { ...original.fields, title: "Revised title" }, original.version);
+
+  assert.throws(() => app.manager.saveDraft(staff, original.id, "destination", { ...original.fields, title: "Stale title" }, original.version), denied(409));
+  assert.throws(() => app.manager.saveDraft(staff, original.id, "event", original.fields, revised.version), denied(409));
+  assert.throws(() => app.manager.saveDraft(staff, original.id, "destination", original.fields, undefined), denied(400));
+  assert.throws(() => app.manager.saveDraft(staff, "missing-record", "destination", original.fields, 1), denied(404));
+
+  const current = app.manager.getDraft(staff, original.id);
+  assert.equal(current.kind, "destination");
+  assert.equal(current.version, revised.version);
+  assert.equal(current.fields.title, "Revised title");
+  assert.equal(current.publishedVersion, original.publishedVersion);
+  assert.equal(app.catalog.getPublishedRecord(original.id)?.fields.title, original.fields.title);
+});
+
+test("related destinations must be published first and cannot be withdrawn while published records depend on them", (t) => {
+  const app = new Application(":memory:", password);
+  t.after(() => app.close());
+  const staff = app.access.login(password);
+  const destination = app.manager.saveDraft(staff, null, "destination",
+    { title: "QA place", location: "Miri", interest: "Nature", summary: "A new destination." }, null);
+  const event = app.manager.saveDraft(staff, null, "event", {
+    title: "QA event", destinationIds: destination.id, venue: "Hall", status: "scheduled", startsAt: "2026-12-01T10:00",
+  }, null);
+
+  assert.throws(
+    () => app.manager.saveDraft(staff, null, "event", { title: "Bad link", destinationIds: "sample-event" }, null),
+    (error) => error instanceof InputError && error.status === 422 && Boolean(error.issues?.destinationIds),
+  );
+  assert.throws(
+    () => app.manager.publish(staff, event.id, event.version),
+    (error) => error instanceof InputError && error.status === 422 && Boolean(error.issues?.destinationIds),
+  );
+  assert.equal(app.catalog.getPublishedRecord(event.id), undefined);
+
+  app.manager.publish(staff, destination.id, destination.version);
+  app.manager.publish(staff, event.id, event.version);
+  assert.throws(() => app.manager.withdraw(staff, destination.id), denied(409));
+  assert.ok(app.catalog.getPublishedRecord(destination.id));
+  assert.throws(() => app.manager.withdraw(staff, "waterfront"), denied(409));
+  assert.ok(app.catalog.getPublishedRecord("waterfront"));
+
+  const { plan, guest } = app.coordinator.createItinerary({ date: "2026-12-01", provisional: false });
+  const planned = app.coordinator.updateItinerary(plan.id, guest, plan.revision,
+    { action: "add", recordId: destination.id, start: "", end: "" });
+  app.manager.withdraw(staff, event.id);
+  app.manager.withdraw(staff, destination.id);
+  assert.equal(app.catalog.getPublishedRecord(destination.id), undefined);
+
+  const reviewed = app.coordinator.reviewItinerary(plan.id, guest);
+  assert.equal(reviewed.entries[0].id, planned.entries[0].id);
+  assert.equal(reviewed.entries[0].recordId, destination.id);
+  assert.equal(reviewed.entries[0].notice, "unavailable");
+  assert.throws(() => app.coordinator.updateItinerary(plan.id, guest, reviewed.revision,
+    { action: "add", recordId: destination.id, start: "", end: "" }), denied(404));
+
+  const withdrawn = app.manager.getDraft(staff, destination.id);
+  assert.equal(withdrawn.publishedVersion, null);
+  app.manager.publish(staff, withdrawn.id, withdrawn.version);
+  assert.equal(app.coordinator.reviewItinerary(plan.id, guest).entries[0].notice, undefined);
+  assert.equal(app.coordinator.reviewItinerary(plan.id, guest).entries[0].title, "QA place");
+});
