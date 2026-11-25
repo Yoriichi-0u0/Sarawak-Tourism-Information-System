@@ -21,6 +21,7 @@ export function Staff() {
   const [error, setError] = useState("");
   const [notice, setNotice] = useState("");
   const [confirmWithdraw, setConfirmWithdraw] = useState(false);
+  const [conflict, setConflict] = useState<StaffRecord>();
 
   useEffect(() => {
     let live = true;
@@ -33,7 +34,8 @@ export function Staff() {
     return () => { live = false; };
   }, []);
 
-  async function run(operation: () => Promise<void>, feedback = "") {
+  // `versioned` names the draft whose version the operation sent, so a 409 can be resolved against the latest copy.
+  async function run(operation: () => Promise<void>, feedback = "", versioned?: string) {
     setBusy(true);
     setError("");
     setNotice("");
@@ -45,19 +47,31 @@ export function Staff() {
       setError(errorMessage(cause));
       if (cause instanceof RequestError) {
         setIssues(cause.issues ?? {});
+        // Keep the open editor and its unsaved changes; they return once staff sign in again.
         if (cause.status === 401 && active) {
           setActive(false);
           setRecords([]);
-          setEditor(undefined);
         }
+        if (cause.status === 409 && versioned) await loadConflict(versioned);
       }
     } finally { setBusy(false); }
+  }
+
+  async function loadConflict(id: string) {
+    try {
+      const latest = await api<StaffRecord[]>("staff/records");
+      setRecords(latest);
+      setConflict(latest.find((record) => record.id === id));
+    } catch {
+      setConflict(undefined);
+    }
   }
 
   function select(record?: Editor) {
     setEditor(record);
     setDirty(false);
     setConfirmWithdraw(false);
+    setConflict(undefined);
     setError("");
     setIssues({});
     setNotice("");
@@ -76,6 +90,7 @@ export function Staff() {
     });
     setDirty(false);
     setConfirmWithdraw(false);
+    setConflict(undefined);
   }
 
   function login(event: FormEvent<HTMLFormElement>) {
@@ -85,7 +100,7 @@ export function Staff() {
       await api("staff/session", { method: "POST", body: { password } });
       setRecords(await api<StaffRecord[]>("staff/records"));
       setActive(true);
-    }, "Signed in.");
+    }, editor ? "Signed in. Your open draft is back in the editor." : "Signed in.");
   }
 
   const shown = records.filter((item) => (!category || item.kind === category) &&
@@ -107,6 +122,7 @@ export function Staff() {
     {active === undefined && <p role="status">Checking staff session…</p>}
     {active === false && <form className="as03-panel as03-signin" onSubmit={login}>
       <h2>Staff sign-in</h2><p>Sign in to save drafts and publish updates.</p>
+      {editor && <p className="as03-meta">{dirty ? "Your unsaved changes are kept" : "Your open draft is kept"} and will return after you sign in.</p>}
       <label>Staff password<input type="password" name="password" autoComplete="current-password" required maxLength={200} /></label>
       <button className="as03-button" disabled={busy}><LockKeyhole size={17} /> Sign in</button>
     </form>}
@@ -133,7 +149,7 @@ export function Staff() {
             method: editor.id ? "PUT" : "POST",
             body: { kind: editor.kind, version: editor.version, fields: editor.fields },
           }));
-        }, "Draft saved.");
+        }, "Draft saved.", editor.id);
       }}>
         <div className="as03-row"><h2>{editor.id ? "Edit draft" : "New record"}</h2>
           {editor.id && <small>Draft v{editor.version} · {selected?.publishedVersion ? `Published v${selected.publishedVersion}` : "Unpublished"}</small>}
@@ -165,13 +181,25 @@ export function Staff() {
             </div>;
           })}
         </div>
+        {conflict && conflict.id === editor.id && <div className="as03-conflict">
+          <p>This draft is now at v{conflict.version}{conflict.fields.title ? ` (“${conflict.fields.title}”)` : ""}.
+            {dirty ? " Load the latest version, or keep your edits and save them as the next version — saving replaces the newer changes." : " Load the latest version to continue."}</p>
+          <div className="as03-row">
+            <button className="as03-outline" type="button" disabled={busy} onClick={() => select(conflict)}>Load latest version</button>
+            {dirty && <button className="as03-text-button" type="button" disabled={busy} onClick={() => {
+              setEditor({ ...editor, version: conflict.version });
+              setConflict(undefined);
+              setError("");
+            }}>Keep my edits</button>}
+          </div>
+        </div>}
         {dirty && editor.id && <p className="as03-meta">Save changes before publishing.</p>}
         <div className="as03-row">
           <button className="as03-button" disabled={busy}><Save size={17} /> Save draft</button>
           <button className="as03-outline" type="button" disabled={busy || dirty || !editor.id} onClick={() => {
             void run(async () => receive(await api<StaffRecord>(`staff/records/${editor.id}/publish`, {
               method: "POST", body: { version: editor.version },
-            })), "Published to the catalogue.");
+            })), "Published to the catalogue.", editor.id);
           }}><Upload size={17} /> Publish</button>
           {selected?.publishedVersion && <button className="as03-text-button" type="button" disabled={busy || dirty} onClick={() => setConfirmWithdraw(true)}>Withdraw</button>}
         </div>

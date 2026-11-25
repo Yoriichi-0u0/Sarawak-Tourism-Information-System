@@ -66,6 +66,8 @@
 .as03-field-error { color: #8c3525; }
 .as03 [aria-invalid="true"] { border-color: #a45946; }
 .as03-withdraw { border-top: 1px solid var(--border); padding-top: 12px; margin-top: 14px; }
+.as03-conflict { border: 1px solid #e3b9a6; background: #fdf4ee; border-radius: 8px; padding: 12px 14px; margin-bottom: 12px; }
+.as03-conflict p { margin: 0 0 10px; }
 .as03-signin { width: min(100%, 480px); }
 .as03-signin button { margin-top: 14px; }
 .as03-footer { background: #183e32; color: #e2ede6; padding: 18px 0; font-size: 14px; }
