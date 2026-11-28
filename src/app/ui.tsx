@@ -7,6 +7,7 @@ import {
 import { optionLabel, options } from "../shared/catalogue";
 import type { Fields, RecordKind, TourismItem } from "../shared/contracts";
 import { mediaAsset, mediaRole, srcSet, type MediaAsset } from "../shared/media";
+import { providerLink } from "../lib/providerLinks";
 import { sectionFor } from "./kinds";
 import { Link } from "./router";
 
@@ -101,15 +102,15 @@ export function ExternalLink({ href, children, className = "button secondary" }:
   </a>;
 }
 
-export function ProviderHandoff({ item }: { item: TourismItem }) {
-  const href = item.fields.provider;
-  if (!href || item.fields.provenance === "illustrative") return <p className="small muted">No external booking or information link is listed for this record.</p>;
-  const host = (() => { try { return new URL(href).hostname.replace(/^www\./, ""); } catch { return ""; } })();
-  const action = item.kind === "accommodation" ? "Check availability and book" : item.kind === "event" ? "Tickets and registration"
-    : item.kind === "transportation" ? "Operator information" : item.kind === "visitor" ? "Read the official guidance" : "Official information";
+/** The provider button. Pass trip dates where the page knows them; only providers that accept dates receive them. */
+export function ProviderHandoff({ item, dates }: { item: TourismItem; dates?: { checkIn?: string; checkOut?: string } }) {
+  const link = providerLink(item, dates && { ...dates, today: today() });
+  if (!link) return <p className="small muted">No external booking or information link is listed for this record.</p>;
   return <div className="stack" style={{ gap: 8 }}>
-    <ExternalLink href={href} className="button primary">{action}</ExternalLink>
-    <p className="small muted">You will leave STIS for <strong>{host}</strong>. Bookings, tickets and payments are handled by that provider, not by STIS.</p>
+    <ExternalLink href={link.href} className="button primary">{link.label}</ExternalLink>
+    {link.datesFilled && <p className="small muted">Your trip dates are filled in. Check them on {link.host} before you book.</p>}
+    {link.note && <p className="small muted">{link.note}</p>}
+    <p className="small muted">You will leave STIS for <strong>{link.host}</strong>. Bookings, tickets and payments are handled by that provider, not by STIS.</p>
   </div>;
 }
 

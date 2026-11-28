@@ -6,7 +6,7 @@ import type { TourismItem } from "../shared/contracts.ts";
 import { detailPath, sectionAt } from "./kinds.ts";
 import { match } from "./router.tsx";
 import { daysOf, guestPath, readGuestHash, readShareHash, sharePath } from "./trips.tsx";
-import { formatDay, formatWhen, ProvenanceBadge, SourceNote, StatusBadge, subtitle } from "./ui.tsx";
+import { formatDay, formatWhen, ProvenanceBadge, ProviderHandoff, SourceNote, StatusBadge, subtitle } from "./ui.tsx";
 
 const item = (kind: TourismItem["kind"], fields: Record<string, string>): TourismItem => ({ id: "x", kind, version: 1, fields: { title: "Sample", ...fields } }) as TourismItem;
 const token = "a".repeat(43);
@@ -41,6 +41,21 @@ test("provenance is always disclosed and unknown values fall back to illustrativ
   assert.match(sourced, /href="https:\/\/www.sarawaktourism.com\/"/);
   assert.match(sourced, /rel="noopener noreferrer"/);
   assert.match(sourced, /checked 20 Nov 2026/);
+});
+
+test("the provider button names the provider, opens safely and says what it does", () => {
+  const stay = item("accommodation", { provenance: "reported", provider: "https://www.booking.com/hotel/my/x.html" });
+  const dated = renderToStaticMarkup(<ProviderHandoff item={stay} dates={{ checkIn: "2999-01-10", checkOut: "2999-01-12" }} />);
+  assert.match(dated, /Search Booking.com/);
+  assert.match(dated, /checkin=2999-01-10&amp;checkout=2999-01-12/);
+  assert.match(dated, /rel="noopener noreferrer"/);
+  assert.match(dated, /Your trip dates are filled in/);
+  assert.match(dated, /handled by that provider, not by STIS/);
+  assert.doesNotMatch(renderToStaticMarkup(<ProviderHandoff item={stay} />), /trip dates/, "no dates, no dates note");
+  const ride = renderToStaticMarkup(<ProviderHandoff item={item("transportation", { provenance: "verified", provider: "https://www.grab.com/my/" })} />);
+  assert.match(ride, /Open Grab/);
+  assert.match(ride, /doesn(&#x27;|')t book a ride/);
+  assert.match(renderToStaticMarkup(<ProviderHandoff item={item("dining", { provenance: "illustrative", provider: "https://example.org/" })} />), /No external booking or information link/);
 });
 
 test("event status is conveyed in text, not colour alone", () => {
