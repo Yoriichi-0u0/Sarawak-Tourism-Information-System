@@ -37,6 +37,14 @@ export function PrivacyPage() {
         Links are never written to server logs.</p>
     </section>
 
+    <section className="stack" style={{ gap: 8 }} aria-labelledby="privacy-bookings">
+      <h2 id="privacy-bookings">Bookings you mark in a trip</h2>
+      <p>When you mark a stop as booked or reserved, STIS stores only who it is with (the provider's website name, or "phone") and, for a stay, the check-out
+        date. STIS does not check the booking and never receives payment or booking details from providers. If you add a booking reference, it is saved in
+        that stop's note: like your other notes, anyone with a view-only link to the trip can see it. Clearing the booking mark leaves the note as it is, so
+        edit the note to remove the reference.</p>
+    </section>
+
     <section className="stack" style={{ gap: 8 }} aria-labelledby="privacy-where">
       <h2 id="privacy-where">Where data is kept</h2>
       <p>The database is hosted by Supabase in Singapore, and the application by Vercel, with its server functions in Singapore. Error logs record only the

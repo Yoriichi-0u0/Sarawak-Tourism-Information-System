@@ -29,6 +29,10 @@ export type Entry = {
   start: string;
   end: string;
   note: string;
+  /** Provider host the tourist says they booked or reserved with (e.g. "booking.com", or "phone"). Empty when not marked. */
+  bookedWith: string;
+  /** Check-out date for a booked stay; check-in is `day`. Empty for everything else. */
+  bookedUntil: string;
 };
 export type Plan = PlanSettings & {
   id: string;

@@ -513,7 +513,9 @@ test("itinerary storage keeps no copy of published event dates", async (t) => {
   const columns = async (table: string) => (await app.db.query<{ column_name: string }>(
     "select column_name from information_schema.columns where table_schema = 'stis' and table_name = $1 order by ordinal_position", [table]))
     .map(({ column_name }) => column_name);
-  assert.deepEqual(await columns("itinerary_entry"), ["id", "itinerary_id", "record_id", "kind", "day", "start_time", "end_time", "note", "position"]);
+  // booked_until is a stay's check-out date; the database refuses it on event stops (itinerary_entry_checkout_stays).
+  assert.deepEqual(await columns("itinerary_entry"),
+    ["id", "itinerary_id", "record_id", "kind", "day", "start_time", "end_time", "note", "position", "booked_with", "booked_until"]);
   assert.deepEqual(await columns("itinerary"),
     ["id", "owner_id", "guest_digest", "title", "start_date", "end_date", "provisional", "revision", "created_at", "updated_at", "share_digest"]);
   const rows = await app.db.query("select * from stis.itinerary_entry where itinerary_id = $1", [plan.id]);
@@ -523,7 +525,7 @@ test("itinerary storage keeps no copy of published event dates", async (t) => {
 });
 
 test("an event entry ignores a malformed published start", async () => {
-  const entry = new ItineraryEntry({ id: "e", recordId: "x", kind: "event", day: "2026-11-27", start: "", end: "", note: "" });
+  const entry = new ItineraryEntry({ id: "e", recordId: "x", kind: "event", day: "2026-11-27", start: "", end: "", note: "", bookedWith: "", bookedUntil: "" });
   const record = (startsAt: string, status = "scheduled"): TourismItem =>
     ({ id: "x", kind: "event", version: 1, fields: { title: "Synthetic", status, startsAt } });
   for (const startsAt of ["", "2026-02-30T10:00", "2026-02-30", "2026-12-05T24:00", "2026-12-05T10:00Z"]) {
@@ -536,7 +538,7 @@ test("an event entry ignores a malformed published start", async () => {
   assert.equal(entry.assessEventDate(record("2026-11-27T23:30"), "2026-11-27"), undefined);
   assert.equal(entry.assessEventDate(record("2026-11-28T00:00"), "2026-11-27"), "different-date");
   assert.equal(entry.publishedStart(undefined), undefined);
-  const destination = new ItineraryEntry({ id: "d", recordId: "y", kind: "destination", day: "2026-11-27", start: "", end: "", note: "" });
+  const destination = new ItineraryEntry({ id: "d", recordId: "y", kind: "destination", day: "2026-11-27", start: "", end: "", note: "", bookedWith: "", bookedUntil: "" });
   assert.equal(destination.publishedStart(record("2026-12-05T10:00")), undefined);
 });
 
@@ -744,4 +746,95 @@ test("trip dates must be Gregorian calendar dates: no year zero, and leap days o
     const created = await app.coordinator.createItinerary({ date: start, endDate: end, provisional: true });
     assert.equal(created.plan.date, start);
   }
+});
+
+// Booking marks (issue #10, step 2): a tourist records a booking made with an outside provider.
+const tripDates = { date: "2026-12-10", endDate: "2026-12-13", provisional: false };
+
+async function bookedTrip(app: Application) {
+  let { plan, guest } = await guestPlan(app, tripDates);
+  const edit = async (change: Record<string, unknown>) => (plan = await app.coordinator.updateItinerary(plan.id, guest, plan.revision, change));
+  for (const recordId of ["sample-accommodation", "sample-dining", "sample-transport", "sample-event", "bako"])
+    await edit({ action: "add", recordId, start: "", end: "", day: "2026-12-10" });
+  const id = (recordId: string) => plan.entries.find((entry) => entry.recordId === recordId)!.id;
+  return { get plan() { return plan; }, guest, edit, id };
+}
+
+test("stays, meals, transport and events can be marked as booked, and the mark can be cleared", async (t) => {
+  const app = await open(t);
+  const trip = await bookedTrip(app);
+  const entry = (recordId: string) => trip.plan.entries.find((item) => item.recordId === recordId)!;
+  assert.deepEqual([entry("bako").bookedWith, entry("bako").bookedUntil], ["", ""], "new stops are not booked");
+
+  await trip.edit({ action: "book", entryId: trip.id("sample-accommodation"), provider: " WWW.Booking.com ", until: "2026-12-12", reference: " ABC   123 " });
+  assert.deepEqual([entry("sample-accommodation").bookedWith, entry("sample-accommodation").bookedUntil], ["booking.com", "2026-12-12"]);
+  assert.equal(entry("sample-accommodation").note, "Booking reference: ABC 123", "the reference goes into the tourist's own note");
+  await trip.edit({ action: "book", entryId: trip.id("sample-dining"), provider: "phone" });
+  await trip.edit({ action: "book", entryId: trip.id("sample-transport"), provider: "grab.com", until: "" });
+  await trip.edit({ action: "book", entryId: trip.id("sample-event"), provider: "example.org" });
+  const reopened = await app.coordinator.reviewItinerary(trip.plan.id, trip.guest);
+  assert.deepEqual(reopened.entries.map(({ recordId, bookedWith, bookedUntil }) => [recordId, bookedWith, bookedUntil]), [
+    ["sample-accommodation", "booking.com", "2026-12-12"], ["sample-dining", "phone", ""], ["sample-transport", "grab.com", ""],
+    ["sample-event", "example.org", ""], ["bako", "", ""],
+  ], "marks survive a reload");
+
+  await trip.edit({ action: "unbook", entryId: trip.id("sample-accommodation") });
+  assert.deepEqual([entry("sample-accommodation").bookedWith, entry("sample-accommodation").bookedUntil], ["", ""]);
+  assert.equal(entry("sample-accommodation").note, "Booking reference: ABC 123", "clearing the mark leaves the tourist's note alone");
+});
+
+test("booking marks are validated for each kind of stop", async (t) => {
+  const app = await open(t);
+  const trip = await bookedTrip(app);
+  const book = (recordId: string, change: Record<string, unknown>) =>
+    app.coordinator.updateItinerary(trip.plan.id, trip.guest, trip.plan.revision, { action: "book", entryId: trip.id(recordId), ...change });
+  await assert.rejects(book("bako", { provider: "booking.com" }), isInputError(400, /Destinations can't be marked/));
+  for (const until of [undefined, "", "2026-12-10", "2026-12-09", "2026-02-30", "2027-01-10"])
+    await assert.rejects(book("sample-accommodation", { provider: "booking.com", until }), isInputError(400, /check-out date after check-in/), String(until));
+  await assert.rejects(book("sample-transport", { provider: "grab.com", until: "2026-12-11" }), isInputError(400, /Only stays/));
+  for (const provider of [undefined, "", "https://booking.com/x", "booking", "-bad.com", "a".repeat(98) + ".com", 5])
+    await assert.rejects(book("sample-dining", { provider }), isInputError(400, /who the booking is with/), String(provider));
+  await assert.rejects(book("sample-dining", { provider: "phone", reference: "x".repeat(61) }), isInputError(400, /60 characters/));
+  await trip.edit({ action: "update", entryId: trip.id("sample-dining"), start: "", end: "", note: "n".repeat(480) });
+  await assert.rejects(book("sample-dining", { provider: "phone", reference: "ABC123" }), isInputError(400, /500 characters/));
+  await assert.rejects(app.coordinator.updateItinerary(trip.plan.id, trip.guest, trip.plan.revision - 1,
+    { action: "book", entryId: trip.id("sample-dining"), provider: "phone" }), isInputError(409), "a stale trip is refused");
+});
+
+test("a booked stop keeps its date until the booking mark is cleared", async (t) => {
+  const app = await open(t);
+  const trip = await bookedTrip(app);
+  const stay = trip.id("sample-accommodation");
+  await trip.edit({ action: "book", entryId: stay, provider: "booking.com", until: "2026-12-12" });
+  await assert.rejects(app.coordinator.updateItinerary(trip.plan.id, trip.guest, trip.plan.revision,
+    { action: "update", entryId: stay, start: "", end: "", day: "2026-12-11" }), isInputError(400, /Clear the booking mark before moving it/));
+  await trip.edit({ action: "update", entryId: stay, start: "15:00", end: "16:00", day: "2026-12-10" });
+  assert.equal(trip.plan.entries.find(({ id }) => id === stay)?.start, "15:00", "times can still change on the same day");
+  await assert.rejects(app.coordinator.updateItinerary(trip.plan.id, trip.guest, trip.plan.revision,
+    { action: "date", date: "2026-12-11", endDate: "2026-12-14", provisional: false }), isInputError(400, /Clear those booking marks/));
+  await trip.edit({ action: "date", date: "2026-12-10", endDate: "2026-12-12", provisional: true });
+  await trip.edit({ action: "unbook", entryId: stay });
+  await trip.edit({ action: "date", date: "2026-12-11", endDate: "2026-12-13", provisional: true });
+  assert.equal(trip.plan.entries.find(({ id }) => id === stay)?.day, "2026-12-11", "once cleared, the stop moves with the trip");
+});
+
+test("only editors can mark bookings, and the database refuses marks the rules forbid", async (t) => {
+  const app = await open(t);
+  const trip = await bookedTrip(app);
+  const { token } = await app.coordinator.shareItinerary(trip.plan.id, trip.guest);
+  await assert.rejects(app.coordinator.updateItinerary(trip.plan.id, token, trip.plan.revision,
+    { action: "book", entryId: trip.id("sample-dining"), provider: "phone" }), isInputError(404), "a view-only link can't change bookings");
+  const shared = await app.coordinator.viewSharedItinerary(token);
+  assert.equal(shared.entries.every(({ bookedWith }) => bookedWith === ""), true);
+
+  const refused = async (sql: string, id: string) => {
+    await assert.rejects(app.db.query(`update stis.itinerary_entry set ${sql} where id = $1`, [id]),
+      (error: unknown) => (error as { code?: string }).code === "23514", sql);
+  };
+  await refused("booked_with = 'booking.com', booked_until = '2026-12-12'", trip.id("sample-event"));
+  await refused("booked_with = 'booking.com'", trip.id("bako"));
+  await refused("booked_until = '2026-12-12'", trip.id("sample-accommodation"));
+  await refused("booked_with = 'booking.com', booked_until = '2026-12-10'", trip.id("sample-accommodation"));
+  await refused("booked_with = 'booking.com', booked_until = '12/12/2026'", trip.id("sample-accommodation"));
+  await refused(`booked_with = '${"a".repeat(101)}'`, trip.id("sample-dining"));
 });

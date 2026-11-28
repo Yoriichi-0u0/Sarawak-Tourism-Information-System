@@ -65,6 +65,24 @@ function readNote(value: unknown): string {
   return value.trim();
 }
 
+const maxNights = 30;
+const movingBookedStop = "This stop is marked as booked for a fixed date. Clear the booking mark before moving it.";
+
+/** A provider host such as "booking.com" (lower case, no path), or "phone" for a booking made by phone. */
+function readProvider(value: unknown): string {
+  const host = /^(?=.{1,100}$)[a-z0-9](?:[a-z0-9-]*[a-z0-9])?(?:\.[a-z0-9](?:[a-z0-9-]*[a-z0-9])?)+$/;
+  if (typeof value !== "string") throw new InputError("Choose who the booking is with.");
+  const provider = value.trim().toLowerCase().replace(/^www\./, "");
+  if (provider !== "phone" && !host.test(provider)) throw new InputError("Choose who the booking is with.");
+  return provider;
+}
+
+function readReference(value: unknown): string {
+  if (value === undefined || value === "") return "";
+  if (typeof value !== "string" || value.trim().length > 60) throw new InputError("Keep the booking reference to 60 characters.");
+  return value.trim().replace(/\s+/g, " ");
+}
+
 function readInterval(start: unknown, end: unknown): [string, string] {
   const time = /^(?:[01]\d|2[0-3]):[0-5]\d$/;
   if (start === "" && end === "") return ["", ""];
@@ -241,14 +259,47 @@ export class Itinerary {
     const interval = readInterval(start, end);
     this.value.entries.push({
       id: randomUUID(), recordId: record.id, kind: record.kind, day: this.readDay(day), start: interval[0], end: interval[1], note: readNote(note),
+      bookedWith: "", bookedUntil: "",
     });
   }
 
   updateEntryTime(id: unknown, start: unknown, end: unknown, day?: unknown, note?: unknown) {
     const entry = this.entry(id);
     new ItineraryEntry(entry).updatePlannedInterval(start, end);
-    if (day !== undefined) entry.day = this.readDay(day);
+    if (day !== undefined) {
+      const next = this.readDay(day);
+      if (next !== entry.day && entry.bookedWith) throw new InputError(movingBookedStop);
+      entry.day = next;
+    }
     if (note !== undefined) entry.note = readNote(note);
+  }
+
+  /**
+   * Records that the tourist booked or reserved this stop with an outside provider. STIS never checks the
+   * booking: it stores the provider's host (or "phone") and, for a stay, the check-out date. An optional
+   * booking reference the tourist types is added to the stop's own note, which the tourist controls.
+   */
+  markBooked(id: unknown, provider: unknown, until: unknown, reference?: unknown) {
+    const entry = this.entry(id);
+    if (entry.kind === "destination") throw new InputError("Destinations can't be marked as booked. Mark the stay, transport, event or place to eat instead.");
+    const bookedWith = readProvider(provider);
+    let bookedUntil = "";
+    if (entry.kind === "accommodation") {
+      if (!validDate(until) || until <= entry.day || daysBetween(entry.day, until) > maxNights)
+        throw new InputError(`Enter a check-out date after check-in, up to ${maxNights} nights later.`);
+      bookedUntil = until;
+    } else if (until !== undefined && until !== "") {
+      throw new InputError("Only stays have a check-out date.");
+    }
+    const ref = readReference(reference);
+    const note = ref ? [entry.note, `Booking reference: ${ref}`].filter(Boolean).join("\n") : entry.note;
+    if (note.length > 500) throw new InputError("The note and booking reference together must fit in 500 characters.");
+    Object.assign(entry, { bookedWith, bookedUntil, note });
+  }
+
+  /** Removes the booking mark. A booking reference already added to the note stays there for the tourist to edit. */
+  clearBooking(id: unknown) {
+    Object.assign(this.entry(id), { bookedWith: "", bookedUntil: "" });
   }
 
   removeEntry(id: unknown) {
@@ -269,6 +320,8 @@ export class Itinerary {
   updateTravelDate(value: unknown) {
     const settings = planSettings(value, daysBetween(this.value.date, this.value.endDate));
     const shift = daysBetween(this.value.date, settings.date);
+    if (shift !== 0 && this.value.entries.some((entry) => entry.bookedWith))
+      throw new InputError("Some stops are marked as booked for fixed dates. Clear those booking marks before moving the trip.");
     const moved = this.value.entries.map((entry) => ({ entry, day: addDays(entry.day, shift) }));
     if (moved.some(({ day }) => day > settings.endDate))
       throw new InputError("Some stops fall after the new end date. Move or remove them first.");

@@ -126,6 +126,12 @@ export class ItineraryCoordinator {
       case "date":
         itinerary.updateTravelDate(command);
         break;
+      case "book":
+        itinerary.markBooked(command.entryId, command.provider, command.until, command.reference);
+        break;
+      case "unbook":
+        itinerary.clearBooking(command.entryId);
+        break;
       case "rename":
         plan.title = readTitle(command.title ?? "", plan.title);
         break;

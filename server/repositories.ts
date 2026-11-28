@@ -183,7 +183,8 @@ export class ItineraryRepository {
 
   private async withEntries(row: PlanRow | undefined, db: Db): Promise<StoredPlan> {
     if (!row) throw unavailablePlan();
-    const entries = await db.query<Plan["entries"][number]>(`select id, record_id as "recordId", kind, day, start_time as start, end_time as "end", note
+    const entries = await db.query<Plan["entries"][number]>(`select id, record_id as "recordId", kind, day, start_time as start, end_time as "end", note,
+        booked_with as "bookedWith", booked_until as "bookedUntil"
       from stis.itinerary_entry where itinerary_id = $1 order by position`, [row.id]);
     return { id: row.id, title: row.title, date: row.date, endDate: row.end_date, provisional: row.provisional, revision: row.revision, entries,
       owned: row.owner_id !== null, sharing: row.sharing };
@@ -198,8 +199,9 @@ export class ItineraryRepository {
       if (!changed.length) throw new InputError("This itinerary changed. Reopen it before saving.", 409);
       await tx.query("delete from stis.itinerary_entry where itinerary_id = $1", [plan.id]);
       for (const [position, entry] of plan.entries.entries()) {
-        await tx.query(`insert into stis.itinerary_entry(id, itinerary_id, record_id, kind, day, start_time, end_time, note, position)
-          values ($1, $2, $3, $4, $5, $6, $7, $8, $9)`, [entry.id, plan.id, entry.recordId, entry.kind, entry.day, entry.start, entry.end, entry.note, position]);
+        await tx.query(`insert into stis.itinerary_entry(id, itinerary_id, record_id, kind, day, start_time, end_time, note, position, booked_with, booked_until)
+          values ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11)`,
+        [entry.id, plan.id, entry.recordId, entry.kind, entry.day, entry.start, entry.end, entry.note, position, entry.bookedWith, entry.bookedUntil]);
       }
       return this.load(plan.id, access, tx);
     });
