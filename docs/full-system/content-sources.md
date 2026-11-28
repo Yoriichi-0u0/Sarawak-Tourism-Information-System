@@ -14,8 +14,8 @@ Facts are paraphrased; no text, photos or logos are copied. Prices, fares, timet
 | Topic | Source | Used for |
 |---|---|---|
 | Bako National Park | [Sarawak Forestry Corporation](https://sfc.sarawak.gov.my/web/subpage/webpage_view/49) | Gazetted 1957, boat access, ASEAN Heritage Park |
-| Kubah National Park | [Sarawak Tourism Board](https://sarawaktourism.com/blog/take-a-leap-into-kubah-national-park) | Distance, frogs, Matang Wildlife Centre |
-| Semenggoh | [Sarawak Tourism Board](https://sarawaktourism.com/blog/semenggoh-wildlife-centre) | Feeding sessions, sightings not guaranteed |
+| Kubah National Park | [Sarawak Tourism Board](https://www.sarawaktourism.com/web/things-to-do/thing-view/nature/national-parks-wildlife-reserves/kubah-national-park) | Distance, frogs, Matang Wildlife Centre |
+| Semenggoh | [Sarawak Tourism Board](https://www.sarawaktourism.com/web/stories/story-view/national-geographic-orion-expedition-cruise-ship-in-sarawak) | Twice-daily feeding sessions, sightings not guaranteed |
 | Borneo Cultures Museum | [Sarawak Museum Department](https://museum.sarawak.gov.my/web/subpage/webpage_view/169) | Opening date, opening hours |
 | Gunung Mulu | [Mulu National Park: getting there](https://www.mulunationalpark.com/getting-there.php) | UNESCO status, air access, weather delays |
 | Niah | [UNESCO World Heritage Centre](https://whc.unesco.org/en/list/1014) | 2024 inscription |
@@ -25,7 +25,7 @@ Facts are paraphrased; no text, photos or logos are copied. Prices, fares, timet
 | Entry to Sarawak | [Sarawak Government portal](https://www.sarawak.gov.my/web/home/article_view/219/234) | Own immigration control |
 | Bako bus | [Travelfish](https://www.travelfish.org/transport/malaysia/sarawak/sarawak/bako_national_park/all) | Route 1 from the Open Air Market area |
 | Ride-hailing | [Grab: Miri airport](https://grab.com/global/airport-rides/miri-airport), [DayakDaily](https://dayakdaily.com/kuching-airport-introduces-two-e-hailing-waiting-areas-to-improve-passenger-pick-ups) | Airport pickup |
-| Food | [Sarawak Tourism Board](https://sarawaktourism.com/blog/sarawak-top-10-iconic-food), [SAYS](https://says.com/my/lifestyle/eats/sarawakian-food-you-should-try), [TTR Weekly](https://ttrweekly.com/site/2023/09/the-perfect-kuching-halal-food-crawl) | Kolo mee, halal options, Lepau |
+| Food | [Sarawak Tourism Board](https://www.sarawaktourism.com/web/places-to-visit/town-view/kuching), [SAYS](https://says.com/my/lifestyle/eats/sarawakian-food-you-should-try), [TTR Weekly](https://ttrweekly.com/site/2023/09/the-perfect-kuching-halal-food-crawl) | Kolo mee, halal options, Lepau |
 | Gawai Dayak | [Sarawak Government (UKAS)](https://ukas.sarawak.gov.my/web/subpage/news_view/41822) | Public holiday and open-house visiting |
 | Emergency numbers | [Expat Focus](https://www.expatfocus.com/malaysia/guide/malaysia-emergencies) | 999 and 112 |
 
