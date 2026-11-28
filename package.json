@@ -8,7 +8,7 @@
     "build": "tsc -b && vite build",
     "start": "node --import tsx ./node_modules/vite/bin/vite.js preview --host 127.0.0.1 --port 4173 --strictPort",
     "build:vercel": "npm run build && node scripts/build-vercel.mjs",
-    "test": "node --import tsx --test src/domain.test.ts server/services.test.ts server/catalog.test.ts server/accounts.test.ts server/http.test.ts server/db.test.ts server/proposed.test.ts server/media.test.ts src/lib/recovery.test.ts src/lib/conflicts.test.ts src/lib/eventDates.test.ts src/lib/providerLinks.test.ts src/lib/fieldPresentation.test.ts src/lib/sessionRecovery.test.ts src/lib/theme.test.ts src/lib/destinationSelection.test.tsx src/app/ui.test.tsx",
+    "test": "node --import tsx --test src/domain.test.ts server/services.test.ts server/catalog.test.ts server/accounts.test.ts server/http.test.ts server/db.test.ts server/proposed.test.ts server/media.test.ts src/lib/recovery.test.ts src/lib/conflicts.test.ts src/lib/eventDates.test.ts src/lib/providerLinks.test.ts src/lib/directions.test.ts src/lib/fieldPresentation.test.ts src/lib/sessionRecovery.test.ts src/lib/theme.test.ts src/lib/destinationSelection.test.tsx src/app/ui.test.tsx",
     "typecheck": "tsc --noEmit --incremental false",
     "test:postgres": "node --import tsx --test server/services.test.ts server/catalog.test.ts server/accounts.test.ts server/http.test.ts server/db.test.ts server/proposed.test.ts"
   },
