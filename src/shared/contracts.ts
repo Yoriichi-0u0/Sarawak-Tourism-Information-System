@@ -46,7 +46,9 @@ export type ReviewedPlan = Omit<Plan, "entries"> & {
   sharing?: boolean;
   /** Present on the view-only representation. */
   readOnly?: true;
-  entries: (Entry & { title: string; location?: string; notice?: Notice; eventStartsAt?: string; dateNotice?: DateNotice })[];
+  entries: (Entry & { title: string; location?: string; notice?: Notice; eventStartsAt?: string; dateNotice?: DateNotice;
+    /** The published record's provider URL and provenance, so the trip can offer the provider's link. */
+    provider?: string; provenance?: string })[];
   conflicts: [string, string][];
 };
 export type PlanSummary = { id: string; title: string; date: string; endDate: string; provisional: boolean; entryCount: number; updatedAt: string };

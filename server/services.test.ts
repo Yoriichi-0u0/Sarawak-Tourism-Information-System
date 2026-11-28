@@ -838,3 +838,15 @@ test("only editors can mark bookings, and the database refuses marks the rules f
   await refused("booked_with = 'booking.com', booked_until = '12/12/2026'", trip.id("sample-accommodation"));
   await refused(`booked_with = '${"a".repeat(101)}'`, trip.id("sample-dining"));
 });
+
+test("trip stops carry their record's provider link, and nothing once the record is withdrawn", async (t) => {
+  const app = await open(t);
+  const trip = await bookedTrip(app);
+  const event = () => trip.plan.entries.find(({ recordId }) => recordId === "sample-event")!;
+  assert.deepEqual([event().provider, event().provenance], ["https://example.org/", "illustrative"]);
+  await trip.edit({ action: "book", entryId: trip.id("sample-event"), provider: "example.org" });
+  (await app.manager.withdraw(await signIn(app), "sample-event"));
+  const reviewed = (await app.coordinator.reviewItinerary(trip.plan.id, trip.guest)).entries.find(({ recordId }) => recordId === "sample-event")!;
+  assert.deepEqual([reviewed.notice, reviewed.provider, reviewed.bookedWith], ["unavailable", undefined, "example.org"],
+    "the mark stays so the tourist can still see and clear it");
+});

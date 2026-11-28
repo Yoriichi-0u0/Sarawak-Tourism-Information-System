@@ -184,6 +184,8 @@ export class ItineraryCoordinator {
       const assessed = new ItineraryEntry(entry);
       return { ...entry, title: record?.fields.title ?? unavailableTitle[entry.kind],
         location: location || undefined,
+        provider: record?.fields.provider || undefined,
+        provenance: record?.fields.provenance || undefined,
         notice: assessed.assessEvent(record),
         eventStartsAt: assessed.publishedStart(record),
         dateNotice: assessed.assessEventDate(record, entry.day) };
