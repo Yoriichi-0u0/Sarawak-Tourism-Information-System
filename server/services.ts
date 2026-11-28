@@ -7,6 +7,8 @@ import { AccountService, defaultHashCost, newToken, type Clock, type HashCost } 
 import { migrate, type Db } from "./db.ts";
 import { TourismCatalog } from "./catalog.ts";
 import { InputError, Itinerary, ItineraryEntry, object, planSettings, TourismRecord } from "./domain.ts";
+import { catalogue } from "./content/catalogue.ts";
+import { consoleRecords } from "./content/console.ts";
 import { syncContent } from "./content/sync.ts";
 import { seedCatalogue } from "./seed.ts";
 import { ItineraryRepository, TourismRepository, type PlanAccess } from "./repositories.ts";
@@ -204,7 +206,8 @@ export type ApplicationOptions = {
   clock?: Clock;
   hashCost?: HashCost;
   admin?: { email: string; password: string; displayName?: string };
-  seed?: boolean | "fixture" | "content";
+  /** "content" seeds the curated catalogue; "production" also seeds the records staff published through the production console. */
+  seed?: boolean | "fixture" | "content" | "production";
   migrate?: boolean;
 };
 
@@ -229,8 +232,9 @@ export class Application {
     const app = new Application(options.db, options.clock ?? (() => new Date()), options.hashCost ?? defaultHashCost);
     if (options.migrate !== false) await migrate(options.db);
     if (options.admin) await app.accounts.bootstrapAdmin(options.admin.email, options.admin.password, options.admin.displayName);
-    if (options.seed === "content") {
-      if (!(await app.db.query("select 1 from stis.tourism_record limit 1")).length) await syncContent(app.records);
+    if (options.seed === "content" || options.seed === "production") {
+      if (!(await app.db.query("select 1 from stis.tourism_record limit 1")).length)
+        await syncContent(app.records, options.seed === "production" ? [...catalogue, ...consoleRecords] : catalogue);
     } else if (options.seed !== false) await seedCatalogue(app.db, app.records);
     return app;
   }
