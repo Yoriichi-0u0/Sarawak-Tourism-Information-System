@@ -8,6 +8,7 @@ import { api, download, errorMessage, RequestError } from "../../lib/api";
 import { conflictDetails } from "../../lib/conflicts";
 import { describePlanChanges, isStale } from "../../lib/recovery";
 import type { PlanSummary, ReviewedPlan } from "../../shared/contracts";
+import { BookingBadge, StopBooking, useHandoff } from "../booking";
 import { detailPath, sectionFor, sections } from "../kinds";
 import { Link, navigate } from "../router";
 import { useSession } from "../session";
@@ -95,6 +96,7 @@ export function TripPage({ id, guest }: { id: string; guest?: GuestLink }) {
   const [editing, setEditing] = useState<Editing>();
   const [busy, setBusy] = useState(false);
   const [confirmDelete, setConfirmDelete] = useState(false);
+  const { handoff, start: startHandoff, clear: clearHandoff } = useHandoff();
   const token = guest?.id === id ? guest.token : undefined;
   useTitle(plan?.title ?? "Trip");
 
@@ -134,7 +136,8 @@ export function TripPage({ id, guest }: { id: string; guest?: GuestLink }) {
   async function submitEdit(event: FormEvent<HTMLFormElement>, entryId: string) {
     event.preventDefault();
     const form = new FormData(event.currentTarget);
-    if (await change({ action: "update", entryId, day: form.get("day"), start: form.get("start") ?? "", end: form.get("end") ?? "", note: form.get("note") ?? "" }, "Stop updated.")) setEditing(undefined);
+    // A booked stop's day field is disabled and absent from the form; leaving day out keeps it unchanged.
+    if (await change({ action: "update", entryId, day: form.get("day") ?? undefined, start: form.get("start") ?? "", end: form.get("end") ?? "", note: form.get("note") ?? "" }, "Stop updated.")) setEditing(undefined);
   }
   async function submitDates(event: FormEvent<HTMLFormElement>) {
     event.preventDefault();
@@ -203,6 +206,7 @@ export function TripPage({ id, guest }: { id: string; guest?: GuestLink }) {
                   <h3 id={`stop-${entry.id}`}>{entry.notice === "unavailable" ? entry.title : <Link to={detailPath(entry.kind, entry.recordId)}>{entry.title}</Link>}</h3>
                   {entry.location && <p className="meta" style={{ margin: 0 }}><span><MapPin size={14} aria-hidden="true" />{entry.location}</span></p>}
                   <div className="tags" style={{ marginTop: 6 }}>
+                    <BookingBadge stop={entry} />
                     {entry.notice === "cancelled" && <span className="badge danger">Event cancelled</span>}
                     {entry.notice === "postponed" && <span className="badge warn">Event postponed</span>}
                     {entry.notice === "unavailable" && <span className="badge neutral">Current information unavailable</span>}
@@ -210,10 +214,13 @@ export function TripPage({ id, guest }: { id: string; guest?: GuestLink }) {
                     {conflicts.length > 0 && <span className="badge danger"><AlertTriangle size={14} aria-hidden="true" />Overlaps {conflicts.map(({ title, interval }) => `${title} (${interval})`).join(", ")}</span>}
                   </div>
                   {entry.eventStartsAt && !entry.dateNotice && <p className="small muted" style={{ margin: "6px 0 0" }}>Published event start: {entry.eventStartsAt.replace("T", " ")}</p>}
-                  {entry.note && <p className="small" style={{ margin: "6px 0 0" }}>Note: {entry.note}</p>}
+                  {entry.note && <p className="small" style={{ margin: "6px 0 0", whiteSpace: "pre-line" }}>Note: {entry.note}</p>}
+                  {!isEditing && <StopBooking stop={entry} plan={plan} busy={busy} change={change}
+                    handoff={handoff} onHandoff={startHandoff} onDismiss={clearHandoff} />}
                   {isEditing ? <form className="stack" style={{ marginTop: 10 }} onSubmit={(event) => submitEdit(event, entry.id)} aria-label={`Edit ${entry.title}`}>
                     <div className="editor-grid">
-                      <label className="field">Day<select name="day" defaultValue={entry.day}>{days.map((option) => <option key={option} value={option}>{formatDay(option)}</option>)}</select></label>
+                      <label className="field">Day<select name="day" defaultValue={entry.day} disabled={Boolean(entry.bookedWith)}>{days.map((option) => <option key={option} value={option}>{formatDay(option)}</option>)}</select>
+                        {entry.bookedWith && <small>Booked for a fixed date. Clear the booking mark to move it.</small>}</label>
                       <label className="field">Note<input type="text" name="note" defaultValue={entry.note} maxLength={500} /></label>
                       <label className="field">Start<input type="time" name="start" defaultValue={entry.start} /></label>
                       <label className="field">End<input type="time" name="end" defaultValue={entry.end} /></label>
@@ -240,7 +247,7 @@ export function TripPage({ id, guest }: { id: string; guest?: GuestLink }) {
           <label className="field">First day<input type="date" name="date" required defaultValue={plan.date} /></label>
           <label className="field">Last day<input type="date" name="endDate" required defaultValue={plan.endDate} /></label>
           <label className="checkbox"><input type="checkbox" name="provisional" defaultChecked={plan.provisional} />Dates are provisional</label>
-          <p className="small muted" style={{ margin: 0 }}>Moving the first day moves every stop with it.</p>
+          <p className="small muted" style={{ margin: 0 }}>Moving the first day moves every stop with it. Stops marked as booked keep their dates, so clear their booking marks first.</p>
           <div><button className="button secondary small" disabled={busy}>Update dates</button></div></form>
         <SharePanel id={id} guest={token} sharing={Boolean(plan.sharing)} onChange={(sharing) => setPlan({ ...plan, sharing })} />
         <div className="panel stack" style={{ gap: 8 }}>
@@ -346,13 +353,14 @@ export function SharedTripPage({ hash }: { hash: string }) {
                 <h3 id={`stop-${entry.id}`}>{entry.notice === "unavailable" ? entry.title : <Link to={detailPath(entry.kind, entry.recordId)}>{entry.title}</Link>}</h3>
                 {entry.location && <p className="meta" style={{ margin: 0 }}><span><MapPin size={14} aria-hidden="true" />{entry.location}</span></p>}
                 <div className="tags" style={{ marginTop: 6 }}>
+                  <BookingBadge stop={entry} />
                   {entry.notice === "cancelled" && <span className="badge danger">Event cancelled</span>}
                   {entry.notice === "postponed" && <span className="badge warn">Event postponed</span>}
                   {entry.notice === "unavailable" && <span className="badge neutral">Current information unavailable</span>}
                   {entry.dateNotice && <span className="badge warn"><AlertTriangle size={14} aria-hidden="true" />Published for {formatDay(entry.eventStartsAt!.slice(0, 10))}</span>}
                   {conflicts.length > 0 && <span className="badge danger"><AlertTriangle size={14} aria-hidden="true" />Overlaps {conflicts.map(({ title, interval }) => `${title} (${interval})`).join(", ")}</span>}
                 </div>
-                {entry.note && <p className="small" style={{ margin: "6px 0 0" }}>Note: {entry.note}</p>}
+                {entry.note && <p className="small" style={{ margin: "6px 0 0", whiteSpace: "pre-line" }}>Note: {entry.note}</p>}
               </div>
             </article>;
           })}
