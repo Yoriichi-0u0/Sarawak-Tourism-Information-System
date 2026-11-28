@@ -3,6 +3,7 @@ import { test, type TestContext } from "node:test";
 
 import { fieldSpecs } from "../src/shared/catalogue.ts";
 import { catalogue } from "./content/catalogue.ts";
+import { consoleRecords } from "./content/console.ts";
 import { syncContent } from "./content/sync.ts";
 import { InputError, TourismRecord } from "./domain.ts";
 import { Application } from "./services.ts";
@@ -31,6 +32,19 @@ test("every curated record is publishable, sourced honestly and unique", () => {
       assert.equal(fields.provider, undefined, `${id} must not link to a provider`);
     }
     for (const claim of [/RM\s?\d/i, /\bguaranteed availability\b/i]) assert.doesNotMatch(JSON.stringify(fields), claim, `${id} states a price or availability`);
+  }
+});
+
+test("a local install starts with the same published catalogue as production", async (t) => {
+  const app = await Application.open({ db: await freshDb(t), hashCost: { N: 1024, r: 8, p: 1 }, seed: "production" });
+  t.after(() => app.close());
+  const expected = new Set([...catalogue, ...consoleRecords].map(({ id }) => id));
+  assert.equal(expected.size, catalogue.length + consoleRecords.length, "console records never reuse a curated id");
+  const published = (await app.records.listDrafts()).filter(({ publishedVersion }) => publishedVersion);
+  assert.deepEqual(published.map(({ id }) => id).sort(), [...expected].sort());
+  for (const { id, kind, fields } of consoleRecords) {
+    assert.deepEqual(TourismRecord.parse(kind, fields).validateForPublication(), {}, id);
+    assert.deepEqual((await app.catalog.getPublishedRecord(id))?.fields.title, fields.title, id);
   }
 });
 
