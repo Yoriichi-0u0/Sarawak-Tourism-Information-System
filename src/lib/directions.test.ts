@@ -4,10 +4,11 @@ import { test } from "node:test";
 import { directionsUrl, inSarawak, legDirections, stopDirections, stopPlace, travelModeFor } from "./directions.ts";
 
 test("the travel mode follows the transport type, and boats and flights get no Maps link", () => {
-  for (const mode of ["bus", "long-distance-bus", "shuttle"]) assert.equal(travelModeFor(mode), "transit", mode);
+  for (const mode of ["bus", "shuttle"]) assert.equal(travelModeFor(mode), "transit", mode);
   for (const mode of ["taxi", "ride-hailing"]) assert.equal(travelModeFor(mode), "driving", mode);
-  for (const mode of ["boat", "flight", "", undefined, "hovercraft"]) assert.equal(travelModeFor(mode), undefined, String(mode));
+  for (const mode of ["boat", "flight", "long-distance-bus", "", undefined, "hovercraft"]) assert.equal(travelModeFor(mode), undefined, String(mode));
   assert.equal(legDirections("flight", "Kuching International Airport", "Gunung Mulu National Park"), undefined);
+  assert.equal(legDirections("long-distance-bus", "Kuching Sentral", "Miri Sentral"), undefined, "Google has no coach routes here");
 });
 
 test("stop names get the region added once, so Maps looks in Sarawak", () => {
@@ -19,12 +20,12 @@ test("stop names get the region added once, so Maps looks in Sarawak", () => {
 });
 
 test("directions links use Google's documented format and encode every name", () => {
-  const url = legDirections("long-distance-bus", "Kuching Sentral", "Miri Sentral");
+  const url = legDirections("bus", "Kuching Sentral", "Semenggoh Wildlife Centre");
   assert.ok(url);
   const parsed = new URL(url);
   assert.equal(`${parsed.origin}${parsed.pathname}`, "https://www.google.com/maps/dir/");
   assert.deepEqual(Object.fromEntries(parsed.searchParams), {
-    api: "1", origin: "Kuching Sentral, Sarawak, Malaysia", destination: "Miri Sentral, Sarawak, Malaysia", travelmode: "transit",
+    api: "1", origin: "Kuching Sentral, Sarawak, Malaysia", destination: "Semenggoh Wildlife Centre, Sarawak, Malaysia", travelmode: "transit",
   });
   assert.match(url, /origin=Kuching\+Sentral%2C\+Sarawak%2C\+Malaysia/);
   const odd = new URL(directionsUrl("Bako & Co #1", "Kampung Bako jetty?", "driving")!);

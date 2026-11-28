@@ -12,10 +12,14 @@ export function inSarawak(name: string): string {
   return !trimmed || /\b(sarawak|malaysia)\b/i.test(trimmed) ? trimmed : `${trimmed}${region}`;
 }
 
-/** Public transport for buses and shuttles, driving for taxis and ride-hailing, and none for boats and flights. */
+/**
+ * Public transport for city buses and shuttles, driving for taxis and ride-hailing. Boats, flights and long-distance
+ * coaches get none: Google has no route data for them here (checked 28 Nov 2026: Kuching Sentral to Miri Sentral
+ * answers "outside our current coverage area").
+ */
 export function travelModeFor(mode: string | undefined): TravelMode | undefined {
   switch (mode) {
-    case "bus": case "long-distance-bus": case "shuttle": return "transit";
+    case "bus": case "shuttle": return "transit";
     case "taxi": case "ride-hailing": return "driving";
     default: return undefined;
   }
