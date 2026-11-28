@@ -19,6 +19,16 @@ test("stop names get the region added once, so Maps looks in Sarawak", () => {
   assert.equal(inSarawak(""), "");
 });
 
+test("stop names Maps misreads are searched as the place they mean", () => {
+  assert.equal(inSarawak("Kuching city centre"), "Kuching, Sarawak, Malaysia", "not King Centre");
+  assert.equal(inSarawak("  KUCHING CITY CENTRE "), "Kuching, Sarawak, Malaysia");
+  const bako = new URL(legDirections("bus", "Kuching city centre", "Kampung Bako jetty")!);
+  assert.equal(bako.searchParams.get("origin"), "Kuching, Sarawak, Malaysia");
+  const airport = new URL(legDirections("ride-hailing", "Kuching International Airport", "Kuching city centre")!);
+  assert.equal(airport.searchParams.get("destination"), "Kuching, Sarawak, Malaysia");
+  assert.equal(directionsUrl("Kuching city centre", "Kuching", "driving"), undefined, "the same place at both ends");
+});
+
 test("directions links use Google's documented format and encode every name", () => {
   const url = legDirections("bus", "Kuching Sentral", "Semenggoh Wildlife Centre");
   assert.ok(url);

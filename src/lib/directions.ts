@@ -6,10 +6,17 @@ export type TravelMode = "transit" | "driving";
 const region = ", Sarawak, Malaysia";
 const maxLength = 2048;
 
+/**
+ * STIS stop names that Maps misreads, and the search that lands in the right place instead. Checked on 28 Nov 2026:
+ * "Kuching city centre" found King Centre (a building); "Kuching" lands at the Waterfront.
+ */
+const mapsSearch: Record<string, string> = { "kuching city centre": "Kuching" };
+
 /** Adds the region so Maps doesn't pick a same-named place elsewhere, unless the name already says where it is. */
 export function inSarawak(name: string): string {
   const trimmed = name.trim();
-  return !trimmed || /\b(sarawak|malaysia)\b/i.test(trimmed) ? trimmed : `${trimmed}${region}`;
+  const search = mapsSearch[trimmed.toLowerCase()] ?? trimmed;
+  return !search || /\b(sarawak|malaysia)\b/i.test(search) ? search : `${search}${region}`;
 }
 
 /**
