@@ -94,10 +94,10 @@ export function StatusBadge({ item }: { item: TourismItem }) {
   return <span className={`badge ${status.tone}`}><Icon size={14} aria-hidden="true" />{status.text}</span>;
 }
 
-export function ExternalLink({ href, children, className = "button secondary" }: { href: string; children: ReactNode; className?: string }) {
+export function ExternalLink({ href, children, className = "button secondary", onClick }: { href: string; children: ReactNode; className?: string; onClick?: () => void }) {
   let host = "";
   try { host = new URL(href).hostname.replace(/^www\./, ""); } catch { return null; }
-  return <a className={className} href={href} target="_blank" rel="noopener noreferrer">
+  return <a className={className} href={href} target="_blank" rel="noopener noreferrer" onClick={onClick}>
     {children}<ArrowUpRight size={16} aria-hidden="true" /><span className="sr-only"> (opens {host}, an external provider)</span>
   </a>;
 }
