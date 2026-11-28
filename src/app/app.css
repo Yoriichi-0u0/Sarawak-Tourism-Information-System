@@ -246,6 +246,9 @@ legend { font-weight: 600; font-size: 14px; margin-bottom: 6px; padding: 0; }
 .stop-time small { display: block; color: var(--muted); font-weight: 500; }
 .stop h3 { margin: 0 0 4px; }
 .stop-actions { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 10px; }
+/* Lines the link up with a stop's text column: border 1 + padding 14 + time column 84 + gap 14. */
+.stop-link { padding: 2px 0 2px 113px; }
+@media (max-width: 520px) { .stop-link { padding-left: 0; } }
 @media (max-width: 520px) { .stop { grid-template-columns: 1fr; } }
 .trip-list { display: grid; gap: 12px; }
 .trip-row { display: flex; flex-wrap: wrap; gap: 12px; align-items: center; justify-content: space-between; }

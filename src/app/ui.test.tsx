@@ -103,3 +103,15 @@ test("the privacy notice states what is stored, where, for how long, and how to 
     /no analytics/i, /Delete my account/, /Personal Data Protection Act 2010/, /stis-theme/])
     assert.match(text, fact, String(fact));
 });
+
+test("back-to-back trip stops link to Maps directions only between real places", async () => {
+  const { StopLink } = await import("./pages/Trips.tsx");
+  const stop = (kind: TourismItem["kind"], title: string, provenance = "reported") =>
+    ({ id: title, recordId: title, kind, day: "2999-01-10", start: "", end: "", note: "", bookedWith: "", bookedUntil: "", title, provenance }) as never;
+  const html = renderToStaticMarkup(<StopLink from={stop("destination", "Fort Margherita")} to={stop("destination", "Tua Pek Kong Temple")} />);
+  assert.match(html, /Directions to Tua Pek Kong Temple in Google Maps/);
+  assert.match(html, /travelmode=transit/);
+  assert.match(html, /rel="noopener noreferrer"/);
+  assert.equal(renderToStaticMarkup(<StopLink from={stop("destination", "Fort Margherita")} to={stop("transportation", "Boat to Bako")} />), "");
+  assert.equal(renderToStaticMarkup(<StopLink from={stop("accommodation", "Riverside heritage hotel", "illustrative")} to={stop("destination", "Fort Margherita")} />), "");
+});

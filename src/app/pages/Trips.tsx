@@ -1,4 +1,4 @@
-import { useEffect, useState, type FormEvent } from "react";
+import { Fragment, useEffect, useState, type FormEvent } from "react";
 import {
   AlertTriangle, ArrowDown, ArrowUp, CalendarDays, CalendarPlus, CalendarRange, Copy, Download, Eye, Link2, Link2Off, Luggage, MapPin, Pencil, Printer,
   RefreshCw, Trash2, UserCheck,
@@ -6,6 +6,7 @@ import {
 
 import { api, download, errorMessage, RequestError } from "../../lib/api";
 import { conflictDetails } from "../../lib/conflicts";
+import { stopDirections } from "../../lib/directions";
 import { describePlanChanges, isStale } from "../../lib/recovery";
 import type { PlanSummary, ReviewedPlan } from "../../shared/contracts";
 import { BookingBadge, StopBooking, useHandoff } from "../booking";
@@ -13,7 +14,17 @@ import { detailPath, sectionFor, sections } from "../kinds";
 import { Link, navigate } from "../router";
 import { useSession } from "../session";
 import { daysOf, guestPath, readShareHash, sharePath, useTrips, type GuestLink } from "../trips";
-import { Empty, formatDay, kindTitle, Loading, Notice, today, useTitle } from "../ui";
+import { Empty, ExternalLink, formatDay, kindTitle, Loading, Notice, today, useTitle } from "../ui";
+
+type Stop = ReviewedPlan["entries"][number];
+
+/** Public-transport directions to the next stop on the same day, when both stops are real places. */
+export function StopLink({ from, to }: { from: Stop; to: Stop }) {
+  const href = stopDirections(from, to);
+  return href ? <div className="stop-link">
+    <ExternalLink href={href} className="button ghost small">Directions to {to.title} in Google Maps</ExternalLink>
+  </div> : null;
+}
 
 function NewTripForm({ onCreated }: { onCreated: (plan: ReviewedPlan, guest?: string) => void }) {
   const [error, setError] = useState("");
@@ -199,7 +210,7 @@ export function TripPage({ id, guest }: { id: string; guest?: GuestLink }) {
               const conflicts = partners.get(entry.id) ?? [];
               const Icon = sectionFor(entry.kind).icon;
               const isEditing = editing?.id === entry.id;
-              return <article className="stop" key={entry.id} data-conflict={conflicts.length > 0} aria-labelledby={`stop-${entry.id}`}>
+              return <Fragment key={entry.id}><article className="stop" data-conflict={conflicts.length > 0} aria-labelledby={`stop-${entry.id}`}>
                 <div className="stop-time">{entry.start ? <>{entry.start}<small>to {entry.end}</small></> : <small>Any time</small>}</div>
                 <div>
                   <p className="small muted" style={{ margin: 0, display: "flex", gap: 6, alignItems: "center" }}><Icon size={14} aria-hidden="true" />{kindTitle(entry.kind)}</p>
@@ -233,7 +244,8 @@ export function TripPage({ id, guest }: { id: string; guest?: GuestLink }) {
                     <button className="button ghost small" disabled={busy} onClick={() => change({ action: "remove", entryId: entry.id }, `${entry.title} removed.`)}><Trash2 size={14} aria-hidden="true" />Remove<span className="sr-only"> {entry.title}</span></button>
                   </div>}
                 </div>
-              </article>;
+              </article>
+              {stops[index + 1] && <StopLink from={entry} to={stops[index + 1]} />}</Fragment>;
             })}
           </section>;
         })}
@@ -343,10 +355,10 @@ export function SharedTripPage({ hash }: { hash: string }) {
         return <section className="day" key={day} aria-labelledby={`day-${day}`}>
           <div className="day-head"><h2 id={`day-${day}`}>Day {index + 1}</h2><span className="muted">{formatDay(day)}</span></div>
           {!stops.length && <p className="muted">Nothing planned for this day.</p>}
-          {stops.map((entry) => {
+          {stops.map((entry, index) => {
             const Icon = sectionFor(entry.kind).icon;
             const conflicts = partners.get(entry.id) ?? [];
-            return <article className="stop" key={entry.id} data-conflict={conflicts.length > 0} aria-labelledby={`stop-${entry.id}`}>
+            return <Fragment key={entry.id}><article className="stop" data-conflict={conflicts.length > 0} aria-labelledby={`stop-${entry.id}`}>
               <div className="stop-time">{entry.start ? <>{entry.start}<small>to {entry.end}</small></> : <small>Any time</small>}</div>
               <div>
                 <p className="small muted" style={{ margin: 0, display: "flex", gap: 6, alignItems: "center" }}><Icon size={14} aria-hidden="true" />{kindTitle(entry.kind)}</p>
@@ -362,7 +374,8 @@ export function SharedTripPage({ hash }: { hash: string }) {
                 </div>
                 {entry.note && <p className="small" style={{ margin: "6px 0 0", whiteSpace: "pre-line" }}>Note: {entry.note}</p>}
               </div>
-            </article>;
+            </article>
+            {stops[index + 1] && <StopLink from={entry} to={stops[index + 1]} />}</Fragment>;
           })}
         </section>;
       })}
