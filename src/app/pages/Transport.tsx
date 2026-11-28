@@ -2,13 +2,14 @@ import { useEffect, useState, type FormEvent } from "react";
 import { ArrowRight, Bus, Car, Clock, Plane, Route, Sailboat, SearchX } from "lucide-react";
 
 import { api, errorMessage } from "../../lib/api";
+import { legDirections } from "../../lib/directions";
 import { options } from "../../shared/catalogue";
 import type { TourismItem } from "../../shared/contracts";
 import { CompareTray } from "../compare";
 import { detailPath } from "../kinds";
 import { Link, navigate, useLocation } from "../router";
 import { AddButton } from "../trips";
-import { Empty, label, Loading, Notice, ProvenanceBadge, useTitle } from "../ui";
+import { Empty, ExternalLink, label, Loading, Notice, ProvenanceBadge, useTitle } from "../ui";
 import { ResultCard } from "./Discover";
 
 type Leg = { record: TourismItem; from: string; to: string; reversed: boolean };
@@ -18,6 +19,7 @@ const modeIcon = (mode: string) => mode === "flight" ? Plane : mode === "boat" ?
 function LegView({ leg }: { leg: Leg }) {
   const { fields } = leg.record;
   const Icon = modeIcon(fields.mode);
+  const directions = legDirections(fields.mode, leg.from, leg.to);
   return <div className="leg">
     <span className="leg-icon"><Icon size={20} aria-hidden="true" /></span>
     <div>
@@ -29,7 +31,8 @@ function LegView({ leg }: { leg: Leg }) {
         {fields.duration && <span className="badge neutral">{fields.duration}</span>}
       </div>
       {fields.schedule && <p className="small muted" style={{ margin: "6px 0 0" }}>{fields.schedule}</p>}
-      <div className="card-actions"><AddButton item={leg.record} compact /></div>
+      <div className="card-actions"><AddButton item={leg.record} compact />
+        {directions && <ExternalLink href={directions} className="button secondary small">Directions in Google Maps</ExternalLink>}</div>
     </div>
   </div>;
 }
