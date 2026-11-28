@@ -80,6 +80,12 @@ test("the journey planner finds direct routes, two-leg connections and alternati
   assert.equal(back.direct[0].reversed, true, "two-way services are found in reverse");
   const viaMiri = await app.catalog.journeys({ from: "Miri", to: "Gunung Mulu" });
   assert.ok(viaMiri.connections.some((pair) => legIds(pair).join() === "miri-airport-grab,miri-mulu-flight"));
+  // Places match by name, so Miri Sentral counts as reaching Miri; the ride into the city is offered alongside.
+  const coach = await app.catalog.journeys({ from: "Kuching Sentral", to: "Miri" });
+  assert.deepEqual(coach.direct.map(({ record, to }) => [record.id, to]), [["kuching-miri-coach", "Miri Sentral"]]);
+  assert.ok(legIds(coach.alternatives).includes("miri-sentral-grab"), "the ride on from Miri Sentral is offered");
+  const home = await app.catalog.journeys({ from: "Miri", to: "Kuching Sentral" });
+  assert.ok(home.connections.some((pair) => legIds(pair).join() === "miri-sentral-grab,kuching-miri-coach"), "and the same in reverse");
   const none = await app.catalog.journeys({ from: "Sibu", to: "Bako" });
   assert.deepEqual([none.direct.length, none.connections.length], [0, 0]);
   assert.deepEqual(legIds(none.alternatives).sort(), ["bako-boat", "kuching-bako-bus"], "no direct transport: other options toward Bako are shown once each (SRS T3 2a)");
