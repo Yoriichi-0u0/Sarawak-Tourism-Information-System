@@ -29,6 +29,26 @@ export function directionsUrl(from: string, to: string, travelmode: TravelMode):
   return url.length <= maxLength ? url : undefined;
 }
 
+/** What a trip stop needs for Maps to find it. */
+export type StopForMaps = { kind: string; title: string; location?: string; provenance?: string; notice?: string };
+
+/**
+ * The name Maps should look for: a place's own title, or an event's venue. Transport stops are journeys, not
+ * places; demonstration records describe no real place; withdrawn records may no longer be accurate. None of
+ * those get directions.
+ */
+export function stopPlace(stop: StopForMaps): string | undefined {
+  if (stop.kind === "transportation" || stop.provenance === "illustrative" || stop.notice === "unavailable") return undefined;
+  const name = stop.kind === "event" ? stop.location : stop.title;
+  return name?.trim() || undefined;
+}
+
+/** Public-transport directions from one trip stop to the next, when both are real places. */
+export function stopDirections(from: StopForMaps, to: StopForMaps): string | undefined {
+  const origin = stopPlace(from), destination = stopPlace(to);
+  return origin && destination ? directionsUrl(origin, destination, "transit") : undefined;
+}
+
 /** Directions for one transport leg, in the direction it is being travelled. */
 export function legDirections(mode: string | undefined, from: string | undefined, to: string | undefined): string | undefined {
   const travelmode = travelModeFor(mode);
